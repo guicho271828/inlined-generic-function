@@ -19,11 +19,15 @@
 
 ;; run test with (run! test-name) 
 
-(trace make-method-lambda)
-(trace ensure-generic-function)
+(trace make-method-lambda
+       ensure-generic-function)
 
 (defgeneric plus (a b)
   (:generic-function-class inlined-generic-function))
+
+(defmethod plus :around ((a number) (b number))
+  (format t "~&(plus ~a ~a) is called~&" (type-of a) (type-of b))
+  (call-next-method))
 (defmethod plus ((a fixnum) (b fixnum))
   (+ a b))
 (defmethod plus ((a float) (b float))
@@ -34,11 +38,19 @@
         (is (typep m 'inlined-method))
         (is-true
          (ignore-errors
-           (print
-            (method-lambda-expression m)))
+           (prog1
+             (print
+              (method-lambda-expression m))
+             (fresh-line)))
          (with-output-to-string (s)
-           (format s "Failed to get the inlining form!")
-           (describe m s)))))
+           (format s "~&Failed to get the inlining form!~&")
+           (describe m s)))
+        (is (= 3 (prog2
+                   (trace compute-effective-method
+                          compute-discriminating-function)
+                   (plus 1 2)
+                   (untrace compute-effective-method
+                            compute-discriminating-function))))))
 
 
 
