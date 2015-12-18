@@ -27,4 +27,4 @@
                 :components
                 ((:file "0.package"))))
   :description "MOP implementation of the fast inlinable generic functions dispatched in compile-time"
-  :in-order-to ((test-op (load-op :inlined-generic-function.test))))
+  :in-order-to ((test-op (test-op :inlined-generic-function.test))))
