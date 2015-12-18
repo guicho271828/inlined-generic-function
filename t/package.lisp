@@ -7,6 +7,7 @@
 (defpackage :inlined-generic-function.test
   (:use :closer-common-lisp
         :inlined-generic-function
+        :inlined-generic-function.impl
         :fiveam
         :trivia :alexandria :iterate))
 (in-package :inlined-generic-function.test)

@@ -4,14 +4,21 @@
 |#
 
 (in-package :cl-user)
+
 (defpackage inlined-generic-function
-  (:use :closer-common-lisp :trivia :alexandria :iterate)
   (:nicknames :inlined-gf)
   (:export
    #:inlined-generic-function
+   #:freeze-inlined-generic-function))
+
+(defpackage inlined-generic-function.impl
+  (:use :closer-common-lisp :trivia :alexandria :iterate
+        :inlined-generic-function)
+  (:export
    #:inlined-method
    #:method-lambda-expression))
-(in-package :inlined-generic-function)
+
+(in-package :inlined-generic-function.impl)
 
 ;; target: implementing an inlined gf, a subclass of standard-generic-function
 ;; cf.
