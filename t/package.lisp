@@ -19,19 +19,23 @@
 ;; run test with (run! test-name) 
 
 (trace make-method-lambda)
+(trace ensure-generic-function)
+
+(defgeneric plus (a b)
+  (:generic-function-class inlined-generic-function))
+(defmethod plus ((a fixnum) (b fixnum))
+  (+ a b))
 
 (test inlined-generic-function
-      (defgeneric plus (a b)
-        (:generic-function-class inlined-generic-function))
-      (defmethod plus ((a fixnum) (b fixnum))
-        (+ a b))
       (let ((m (first (generic-function-methods #'plus))))
         (is (typep m 'inlined-method))
         (is-true
          (ignore-errors
-           (method-lambda-expression m))
-         "~a" (with-output-to-string (s)
-                (describe m s)))))
+           (print
+            (method-lambda-expression m)))
+         (with-output-to-string (s)
+           (format s "Failed to get the inlining form!")
+           (describe m s)))))
 
 
 

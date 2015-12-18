@@ -6,7 +6,11 @@
 (in-package :cl-user)
 (defpackage inlined-generic-function
   (:use :closer-common-lisp :trivia :alexandria :iterate)
-  (:nicknames :inlined-gf))
+  (:nicknames :inlined-gf)
+  (:export
+   #:inlined-generic-function
+   #:inlined-method
+   #:method-lambda-expression))
 (in-package :inlined-generic-function)
 
 ;; target: implementing an inlined gf, a subclass of standard-generic-function
@@ -27,15 +31,21 @@
   (:metaclass funcallable-standard-class))
 
 (defclass inlined-method (standard-method)
-     (;; lambda-list
-      (method-lambda-expression :initarg :method-lambda-expression
-                                :accessor method-lambda-expression)))
+     ((method-lambda-expression :initarg :method-lambda-expression
+                                :accessor method-lambda-expression
+                                :documentation "store the function body for later inlining")))
 
-(defmethod make-method-lambda :around ((gf inlined-generic-function)
-                                       (m inlined-method)
-                                       lambda-expression environment)
-  (format t "~&setting ~A to ~a" lambda-expression m)
-  (setf (method-lambda-expression m)
-        (call-next-method)))
+(defmethod make-method-lambda ((gf inlined-generic-function)
+                               (m inlined-method)
+                               lambda-expression environment)
+  (multiple-value-bind (form initargs) (call-next-method)
+      (values form
+              (list* ;; this is passed to make-instance, which results in setting the value
+               :method-lambda-expression form
+               initargs))))
+
+;; (cl:defmethod make-instance :after ((m inlined-method) &rest initargs &key :)
+;;   (setf (method-lambda-expression m)
+;;         (make-method-lambda (method-generic-function m) m
 
 ;; generic-function-methods
