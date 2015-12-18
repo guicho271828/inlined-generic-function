@@ -25,13 +25,6 @@
 ;; http://metamodular.com/CLOS-MOP/chapter-6.html
 ;; http://metamodular.com/CLOS-MOP/readers-for-generic-function-metaobjects.html
 
-#+nil
-(defgeneric name (a b c)
-  (:generic-function-class inlined-generic-function)
-  (:method-class inlined-method))
-
-
-
 (defclass inlined-generic-function (standard-generic-function)
      ()
   (:default-initargs :method-class (find-class 'inlined-method))
@@ -45,14 +38,12 @@
 (defmethod make-method-lambda ((gf inlined-generic-function)
                                (m inlined-method)
                                lambda-expression environment)
+  "Appends an additional keyword argument to the secondary value,
+ which is passed to make-instance and sets the value"
   (multiple-value-bind (form initargs) (call-next-method)
       (values form
-              (list* ;; this is passed to make-instance, which results in setting the value
+              (list*
                :method-lambda-expression form
                initargs))))
 
-;; (cl:defmethod make-instance :after ((m inlined-method) &rest initargs &key :)
-;;   (setf (method-lambda-expression m)
-;;         (make-method-lambda (method-generic-function m) m
 
-;; generic-function-methods
