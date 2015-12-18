@@ -5,10 +5,10 @@
 
 (in-package :cl-user)
 (defpackage :inlined-generic-function.test
-  (:use :cl
+  (:use :closer-common-lisp
         :inlined-generic-function
         :fiveam
-        :trivia :closer-mop :alexandria :iterate))
+        :trivia :alexandria :iterate))
 (in-package :inlined-generic-function.test)
 
 
@@ -18,9 +18,20 @@
 
 ;; run test with (run! test-name) 
 
-(test inlined-generic-function
+(trace make-method-lambda)
 
-  )
+(test inlined-generic-function
+      (defgeneric plus (a b)
+        (:generic-function-class inlined-generic-function))
+      (defmethod plus ((a fixnum) (b fixnum))
+        (+ a b))
+      (let ((m (first (generic-function-methods #'plus))))
+        (is (typep m 'inlined-method))
+        (is-true
+         (ignore-errors
+           (method-lambda-expression m))
+         "~a" (with-output-to-string (s)
+                (describe m s)))))
 
 
 
