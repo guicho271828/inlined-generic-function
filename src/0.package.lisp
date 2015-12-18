@@ -27,13 +27,15 @@
 
 (defclass inlined-generic-function (standard-generic-function)
      ()
+  (:documentation "A metaobject representing inlinable generic function.")
   (:default-initargs :method-class (find-class 'inlined-method))
   (:metaclass funcallable-standard-class))
 
 (defclass inlined-method (standard-method)
      ((method-lambda-expression :initarg :method-lambda-expression
                                 :accessor method-lambda-expression
-                                :documentation "store the function body for later inlining")))
+                                :documentation "method lambda expression (a form) for later inlining"))
+  (:documentation "A metaobject representing inlinable method."))
 
 (defmethod make-method-lambda ((gf inlined-generic-function)
                                (m inlined-method)
