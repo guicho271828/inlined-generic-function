@@ -5,7 +5,8 @@
 
 (in-package :cl-user)
 (defpackage inlined-generic-function
-  (:use :cl :trivia :closer-mop :alexandria :iterate))
+  (:use :closer-common-lisp :trivia :alexandria :iterate)
+  (:nicknames :inlined-gf))
 (in-package :inlined-generic-function)
 
 ;; blah blah blah.

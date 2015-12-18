@@ -25,6 +25,6 @@
   :depends-on (:trivia :closer-mop :alexandria :iterate)
   :components ((:module "src"
                 :components
-                ((:file "package"))))
+                ((:file "0.package"))))
   :description "MOP implementation of the fast inlinable generic functions dispatched in compile-time"
   :in-order-to ((test-op (load-op :inlined-generic-function.test))))
