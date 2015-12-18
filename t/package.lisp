@@ -26,6 +26,8 @@
   (:generic-function-class inlined-generic-function))
 (defmethod plus ((a fixnum) (b fixnum))
   (+ a b))
+(defmethod plus ((a float) (b float))
+  (+ a b))
 
 (test inlined-generic-function
       (let ((m (first (generic-function-methods #'plus))))
