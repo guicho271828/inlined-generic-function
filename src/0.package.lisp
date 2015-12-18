@@ -48,4 +48,15 @@
                :method-lambda-expression form
                initargs))))
 
+(defmethod ensure-generic-function-using-class :after ((gf inlined-generic-function)
+                                                       fun-name &rest rest &key &allow-other-keys)
+  "This method is called while the compilation results of defgeneric form is being loaded.
+It sets up the compiler macro for this generic function."
+  (setf (compiler-macro-function fun-name)
+        #'inline-generic-function))
+
+(defun inline-generic-function (whole env)
+  (declare (ignorable form env))
+  (format t "~&Inlining a generic function ~a~&" (first whole))
+  whole)
 

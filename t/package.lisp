@@ -50,7 +50,9 @@
                           compute-discriminating-function)
                    (plus 1 2)
                    (untrace compute-effective-method
-                            compute-discriminating-function))))))
+                            compute-discriminating-function))))
+        (is (= 3 (plus 1 2)))
+        (is (= 3 (plus 1 2)))))
 
 
 
