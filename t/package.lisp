@@ -77,7 +77,8 @@
     (let ((a (list 1 2)))
       (is (= 1 (my-first a)))
       (is (= 1 (my-first a)))
-      (is (= 1 (funcall #'my-first a))))))
+      (is (= 1 (funcall #'my-first a)))
+      (is (= 1 (apply #'my-first (list a)))))))
 
 
 (defgeneric (setf my-first) (newval a)
@@ -105,4 +106,6 @@
         (setf (my-first a) 3))
       (is (= 3 (my-first a)))
       (funcall #'(setf my-first) 4 a)
-      (is (= 4 (my-first a))))))
+      (is (= 4 (my-first a)))
+      (apply #'(setf my-first) (list 5 a))
+      (is (= 5 (my-first a))))))
