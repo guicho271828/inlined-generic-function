@@ -5,7 +5,8 @@
 
 (in-package :cl-user)
 (defpackage :inlined-generic-function.test
-  (:use :closer-common-lisp
+  (:use ;; :cl
+        :closer-common-lisp
         :inlined-generic-function
         :inlined-generic-function.impl
         :fiveam
@@ -19,8 +20,10 @@
 
 ;; run test with (run! test-name) 
 
-(trace make-method-lambda
-       ensure-generic-function)
+;; (trace make-method-lambda
+;;        ensure-generic-function)
+
+(push :inline-generic-function *features*)
 
 (defgeneric plus (a b)
   (:generic-function-class inlined-generic-function))
@@ -46,13 +49,60 @@
            (format s "~&Failed to get the inlining form!~&")
            (describe m s)))
         (is (= 3 (prog2
-                   (trace compute-effective-method
-                          compute-discriminating-function)
+                   (trace compute-effective-method)
                    (plus 1 2)
-                   (untrace compute-effective-method
-                            compute-discriminating-function))))
+                   (untrace compute-effective-method))))
         (is (= 3 (plus 1 2)))
         (is (= 3 (plus 1 2)))))
 
+(defgeneric my-first (a)
+  (:generic-function-class inlined-generic-function))
+(defmethod my-first ((a list))
+  (car a))
+(defmethod my-first ((a vector))
+  (aref a 0))
+
+(test reader
+  (let ((m (first (generic-function-methods #'my-first))))
+    (is (typep m 'inlined-method))
+    (is-true
+     (ignore-errors
+       (prog1
+         (print
+          (method-lambda-expression m))
+         (fresh-line)))
+     (with-output-to-string (s)
+       (format s "~&Failed to get the inlining form!~&")
+       (describe m s)))
+    (let ((a (list 1 2)))
+      (is (= 1 (my-first a)))
+      (is (= 1 (my-first a)))
+      (is (= 1 (funcall #'my-first a))))))
 
 
+(defgeneric (setf my-first) (newval a)
+  (:generic-function-class inlined-generic-function))
+(defmethod (setf my-first) (newval (a list))
+  (setf (car a) newval))
+(defmethod (setf my-first) (newval (a vector))
+  (setf (aref a 0) newval))
+
+(test writer
+  (let ((m (first (generic-function-methods #'(setf my-first)))))
+    (is (typep m 'inlined-method))
+    (is-true
+     (ignore-errors
+       (prog1
+         (print
+          (method-lambda-expression m))
+         (fresh-line)))
+     (with-output-to-string (s)
+       (format s "~&Failed to get the inlining form!~&")
+       (describe m s)))
+    (let ((a (list 1 2)))
+      (is (= 1 (my-first a)))
+      (finishes
+        (setf (my-first a) 3))
+      (is (= 3 (my-first a)))
+      (funcall #'(setf my-first) 4 a)
+      (is (= 4 (my-first a))))))
