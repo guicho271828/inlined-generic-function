@@ -32,8 +32,9 @@
                                                        fun-name &rest rest &key &allow-other-keys)
   "This method is called while the compilation results of defgeneric form is being loaded.
 It sets up the compiler macro for this generic function."
+  (declare (ignorable rest))
   (setf (compiler-macro-function fun-name)
-        #'inline-generic-function))
+        (curry #'inline-generic-function gf)))
 
 
 
