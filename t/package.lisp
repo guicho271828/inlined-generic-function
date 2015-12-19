@@ -37,7 +37,7 @@
   (+ a b))
 
 (test inlined-generic-function
-      (let ((m (first (generic-function-methods #'plus))))
+  (iter (for m in (generic-function-methods #'plus))
         (is (typep m 'inlined-method))
         (is-true
          (ignore-errors
@@ -47,13 +47,13 @@
              (fresh-line)))
          (with-output-to-string (s)
            (format s "~&Failed to get the inlining form!~&")
-           (describe m s)))
-        (is (= 3 (prog2
-                   (trace compute-effective-method)
-                   (plus 1 2)
-                   (untrace compute-effective-method))))
-        (is (= 3 (plus 1 2)))
-        (is (= 3 (plus 1 2)))))
+           (describe m s))))
+  (is (= 3 (prog2
+             (trace compute-effective-method)
+             (plus 1 2)
+             (untrace compute-effective-method))))
+  (is (= 3 (plus 1 2)))
+  (is (= 3 (plus 1 2))))
 
 (defgeneric my-first (a)
   (:generic-function-class inlined-generic-function))
@@ -63,22 +63,22 @@
   (aref a 0))
 
 (test reader
-  (let ((m (first (generic-function-methods #'my-first))))
-    (is (typep m 'inlined-method))
-    (is-true
-     (ignore-errors
-       (prog1
-         (print
-          (method-lambda-expression m))
-         (fresh-line)))
-     (with-output-to-string (s)
-       (format s "~&Failed to get the inlining form!~&")
-       (describe m s)))
-    (let ((a (list 1 2)))
-      (is (= 1 (my-first a)))
-      (is (= 1 (my-first a)))
-      (is (= 1 (funcall #'my-first a)))
-      (is (= 1 (apply #'my-first (list a)))))))
+  (iter (for m in (generic-function-methods #'my-first))
+        (is (typep m 'inlined-method))
+        (is-true
+         (ignore-errors
+           (prog1
+             (print
+              (method-lambda-expression m))
+             (fresh-line)))
+         (with-output-to-string (s)
+           (format s "~&Failed to get the inlining form!~&")
+           (describe m s))))
+  (let ((a (list 1 2)))
+    (is (= 1 (my-first a)))
+    (is (= 1 (my-first a)))
+    (is (= 1 (funcall #'my-first a)))
+    (is (= 1 (apply #'my-first (list a))))))
 
 
 (defgeneric (setf my-first) (newval a)
@@ -89,23 +89,43 @@
   (setf (aref a 0) newval))
 
 (test writer
-  (let ((m (first (generic-function-methods #'(setf my-first)))))
-    (is (typep m 'inlined-method))
-    (is-true
-     (ignore-errors
-       (prog1
-         (print
-          (method-lambda-expression m))
-         (fresh-line)))
-     (with-output-to-string (s)
-       (format s "~&Failed to get the inlining form!~&")
-       (describe m s)))
-    (let ((a (list 1 2)))
-      (is (= 1 (my-first a)))
-      (finishes
-        (setf (my-first a) 3))
-      (is (= 3 (my-first a)))
-      (funcall #'(setf my-first) 4 a)
-      (is (= 4 (my-first a)))
-      (apply #'(setf my-first) (list 5 a))
-      (is (= 5 (my-first a))))))
+  (iter (for m in (generic-function-methods #'(setf my-first)))
+        (is (typep m 'inlined-method))
+        (is-true
+         (ignore-errors
+           (prog1
+             (print
+              (method-lambda-expression m))
+             (fresh-line)))
+         (with-output-to-string (s)
+           (format s "~&Failed to get the inlining form!~&")
+           (describe m s))))
+  (let ((a (list 1 2)))
+    (is (= 1 (my-first a)))
+    (finishes
+      (setf (my-first a) 3))
+    (is (= 3 (my-first a)))
+    (funcall #'(setf my-first) 4 a)
+    (is (= 4 (my-first a)))
+    (apply #'(setf my-first) (list 5 a))
+    (is (= 5 (my-first a)))))
+
+
+(defgeneric minus (a b)
+  (:generic-function-class inlined-generic-function))
+
+(defmethod minus :around ((a number) (b number))
+  (format t "~&(minus ~a ~a) is called~&" (type-of a) (type-of b))
+  (call-next-method))
+(defmethod minus ((a fixnum) (b fixnum))
+  (- a b))
+(defmethod minus :around ((a fixnum) (b fixnum))
+  (format t "~&(minus ~a ~a) is called (fixnum specific)~&" (type-of a) (type-of b))
+  (call-next-method))
+(defmethod minus ((a float) (b float))
+  (- a b))
+
+
+(test compiler
+  ;; only 1 (fixnum fixnum)
+  (is (= 3 (length (all-specializers #'minus)))))
