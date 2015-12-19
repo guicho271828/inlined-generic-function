@@ -25,7 +25,7 @@
   (multiple-value-bind (form initargs) (call-next-method)
       (values form
               (list*
-               :method-lambda-expression form
+               :method-lambda-expression lambda-expression
                initargs))))
 
 (defmethod ensure-generic-function-using-class :after ((gf inlined-generic-function)
