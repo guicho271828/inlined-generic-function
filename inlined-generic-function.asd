@@ -22,7 +22,7 @@
   :author "Masataro Asai"
   :mailto "guicho2.71828@gmail.com"
   :license "LLGPL"
-  :depends-on (:trivia :closer-mop :alexandria :iterate)
+  :depends-on (:trivia :closer-mop :alexandria :iterate :introspect-environment)
   :components ((:module "src"
                 :components
                 ((:file "0.package")

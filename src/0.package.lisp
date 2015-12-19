@@ -13,6 +13,8 @@
 
 (defpackage inlined-generic-function.impl
   (:use :closer-common-lisp :trivia :alexandria :iterate
+        :introspect-environment
+        #+nil :SANDALPHON.COMPILER-MACRO
         :inlined-generic-function)
   (:export
    #:inlined-method
