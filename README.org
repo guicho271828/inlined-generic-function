@@ -122,7 +122,7 @@ generic functions (with metaclass =inlined-generic-function=) in order to
 build a highly optimized executable binary, because it would be painful to
 search around the use of all generic functions and add an inline
 declaration one by one. Also, during the development you generally do not
-want to make them inlined, since the inlined code become obsoleted when the
+want to make them inlined, since the inlined code becomes obsoleted when the
 generic function changes.
 
 Therefore, the compiler macro recognizes =:inline-generic-function= flag in
@@ -142,7 +142,7 @@ and the primary methods only.  Extensions are future work.
 We tested two generic functions, one of which is a
 standard-generic-function, and another is an inlined-generic-function.
 
-Both generic function follows the definition below:
+Both generic functions follow the definition below:
 
 #+BEGIN_SRC lisp
 (defgeneric plus (a b)
@@ -156,7 +156,7 @@ Both generic function follows the definition below:
   (+ a b))
 #+END_SRC
 
-We tested both of them with and without =inline= declaration, i.e., 
+We tested them with and without =inline= declaration, i.e., 
 
 #+BEGIN_SRC lisp
 (defun func-using-plus (a b)
@@ -178,15 +178,14 @@ The benchmark function is shown below:
                      (collect (cons (random 100.0d0) (random 100.0d0)))
                      (collect (cons (+ 20 (random 100)) (+ 20 (random 100))))))
 (defun benchmark ()
-  (let ((input ))
-    (time (iter (for (a . b) in input)
-                (func-using-normal-plus a b)))
-    (time (iter (for (a . b) in input)
-                (func-using-normal-inlined-plus a b)))
-    (time (iter (for (a . b) in input)
-                (func-using-plus a b)))
-    (time (iter (for (a . b) in input)
-                (func-using-inlined-plus a b)))))
+  (time (iter (for (a . b) in *input*)
+              (func-using-normal-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-normal-inlined-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-inlined-plus a b))))
 #+END_SRC
 
 We first run the benchmark function 1000 times in order to calibrate the CPU cache.
