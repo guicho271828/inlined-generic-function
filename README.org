@@ -56,8 +56,8 @@ At this point the gf is not inlined.
 ; FC:       CC10             BREAK 16                         ; Invalid argument count trap
 #+END_SRC
 
-Now its time to inline the gf. There's nothing different from the normal function.
-In order to inline the generic function, just declare it =inline= when using it.
+Now its time to inline the gf. There's nothing different from inlining a normal function.
+In order to inline the generic function, just declare it =inline= when you use it.
 
 #+BEGIN_SRC lisp
 (defun func-using-plus (a b)
