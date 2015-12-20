@@ -17,40 +17,68 @@
   (:generic-function-class inlined-generic-function))
 
 (defmethod plus :around ((a number) (b number))
-  (format t "~&(plus ~a ~a) is called~&" (type-of a) (type-of b))
+  (+ a b)
   (call-next-method))
 
 (defmethod plus ((a fixnum) (b fixnum))
   (+ a b))
-(defmethod plus ((a float) (b float))
+(defmethod plus ((a double-float) (b double-float))
   (+ a b))
 
 (defun func-using-plus (a b)
+  (declare (optimize (speed 3) (safety 0)))
   (plus a b))
 
-(defun func-using-plus (a b)
+(defun func-using-inlined-plus (a b)
   (declare (inline plus))
+  (declare (optimize (speed 3) (safety 0)))
   (plus a b))
 
 (let ((*features* (cons :inline-generic-function *features*)))
   (print (inline-generic-function '(plus (1+ a) (1- b)))))
 
-(print (function-information 'plus))
+;; benchmark
 
-;; (defgeneric types (a)
-;;   (:generic-function-class inlined-generic-function))
-;; 
-;; (defmethod types :around ((a number))
-;;   (call-next-method))
-;; (defmethod types ((a fixnum))
-;;   (+ a b))
-;; (defmethod types ((a float))
-;;   (+ a b))
-;; 
-;; (defun func-using-types (a b)
-;;   (types a b))
-;; 
-;; (defun func-using-types (a b)
-;;   (declare (inline types))
-;;   (types a b))
+(defgeneric normal-plus (a b))
+
+(defmethod normal-plus :around ((a number) (b number))
+  (+ a b)
+  (call-next-method))
+
+(defmethod normal-plus ((a fixnum) (b fixnum))
+  (+ a b))
+(defmethod normal-plus ((a double-float) (b double-float))
+  (+ a b))
+
+(defun func-using-normal-plus (a b)
+  (declare (optimize (speed 3) (safety 0)))
+  (normal-plus a b))
+
+(defun func-using-normal-inlined-plus (a b)
+  (declare (inline plus))
+  (declare (optimize (speed 3) (safety 0)))
+  (normal-plus a b))
+
+(defvar *input* (iter (repeat 1000)
+                      (collect (cons (random 100.0d0) (random 100.0d0)))
+                      (collect (cons (+ 20 (random 100)) (+ 20 (random 100))))))
+
+(defun benchmark ()
+  (time (iter (for (a . b) in *input*)
+              (func-using-normal-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-normal-inlined-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-inlined-plus a b))))
+
+(let ((*standard-output* (make-broadcast-stream))
+      (*error-output* (make-broadcast-stream))
+      (*trace-output* (make-broadcast-stream)))
+  (iter (repeat 1000)
+        (benchmark)))
+(sb-ext:gc :full t)
+
+(benchmark)
 

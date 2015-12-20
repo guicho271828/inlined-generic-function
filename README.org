@@ -1,7 +1,11 @@
 
 * Inlined-Generic-Function
 
-MOP implementation of the fast inlinable generic functions dispatched in compile-time.
+We propose a MOP-based implementation of fast inlined generic functions
+dispatched in compile-time.  Although it currently supports only the
+=:around= and primary methods of the standard method combination defined in
+ANSI CL, empirical analysis showed that the resulting code is up to *10
+times* faster than the normal generic function invocation.
 
 ** Usage
 
@@ -84,7 +88,7 @@ To see the actual compiler-macro expansion, use =inline-generic-function=.
      (LET ((A #:A1734) (B #:B1735))
        (DECLARE (TYPE FLOAT A))
        (DECLARE (TYPE FLOAT B))
-         (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
+       (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
        (LET ((A #:A1734) (B #:B1735))
          (DECLARE (TYPE FLOAT A))
          (DECLARE (TYPE FLOAT B))
@@ -93,7 +97,7 @@ To see the actual compiler-macro expansion, use =inline-generic-function=.
      (LET ((A #:A1734) (B #:B1735))
        (DECLARE (TYPE FIXNUM A))
        (DECLARE (TYPE FIXNUM B))
-         (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
+       (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
        (LET ((A #:A1734) (B #:B1735))
          (DECLARE (TYPE FIXNUM A))
          (DECLARE (TYPE FIXNUM B))
@@ -129,6 +133,87 @@ the compiler macro declines and the code returns to the normal behavior.
 Currently it supports the standard method combination with =:around= methods
 and the primary methods only.  Extensions are future work.
 
+** Benchmark Setting
+
+We tested two generic functions, one of which is a
+standard-generic-function, and another is an inlined-generic-function.
+
+Both generic function follows the definition below:
+
+#+BEGIN_SRC lisp
+(defgeneric plus (a b)
+  [(:generic-function-class inlined-generic-function)])
+(defmethod plus :around ((a number) (b number))
+  (+ a b)
+  (call-next-method))
+(defmethod plus ((a fixnum) (b fixnum))
+  (+ a b))
+(defmethod plus ((a double-float) (b double-float))
+  (+ a b))
+#+END_SRC
+
+We tested both of them with and without =inline= declaration, i.e., 
+
+#+BEGIN_SRC lisp
+(defun func-using-plus (a b)
+  (declare (optimize (speed 3) (safety 0)))
+  (plus a b))
+
+(defun func-using-inlined-plus (a b)
+  (declare (inline plus))
+  (declare (optimize (speed 3) (safety 0)))
+  (plus a b))
+#+END_SRC
+
+Thus, we have 4 configurations in total.  The experiment is run under AMD
+Phenom II X6 processor 2.8GHz with SBCL 1.3.1 (launched by Roswell).
+The benchmark function is shown below:
+
+#+BEGIN_SRC lisp
+(defvar *input* (iter (repeat 1000)
+                     (collect (cons (random 100.0d0) (random 100.0d0)))
+                     (collect (cons (+ 20 (random 100)) (+ 20 (random 100))))))
+(defun benchmark ()
+  (let ((input ))
+    (time (iter (for (a . b) in input)
+                (func-using-normal-plus a b)))
+    (time (iter (for (a . b) in input)
+                (func-using-normal-inlined-plus a b)))
+    (time (iter (for (a . b) in input)
+                (func-using-plus a b)))
+    (time (iter (for (a . b) in input)
+                (func-using-inlined-plus a b)))))
+#+END_SRC
+
+We first run the benchmark function 1000 times in order to calibrate the CPU cache.
+We then run the gc and invoke the benchmark function once more.
+We use the result of this final run in order to make sure the machine state is stabilized.
+
+** Result
+
+Since the difference in the runtime is relatively small due to the small
+amount of computation, we consider the processor cycles only.  We found
+that the cost of generic function invocation is considerably low when an
+=inlined-generic-function= is invoked with =inline= declaration.
+
+|                                        |              <r> |     <r> |
+| metaclass and inline declaration       | processor cycles | consing |
+|----------------------------------------+------------------+---------|
+| standard-generic-function, not inlined |          742,285 |       0 |
+| standard-generic-function, inlined     |          726,023 |       0 |
+| inlined-generic-function, not inlined  |        7,865,080 | 523,760 |
+| inlined-generic-function, inlined      |         *74,120* |       0 |
+
+Note that the third case, where the =inlined-generic-function= is not
+inlined, is slower than the normal generic function. This would be because
+we use the non-standard metaclass for representing the generic function and
+the normal optimization provided by the implementation is not performed.
+However, this is not a problem because we consider the third case only takes
+place during the development.
+
+** Conclusion
+
+We showed that ... well, anyway, this is not a paper. Enjoy!
 
 ** Dependencies
 
@@ -151,9 +236,9 @@ Also, it depends on the following libraries:
     Jonathan Amsterdam's iterator/gatherer/accumulator facility
 
 
-
 ** Installation
 
+I plan to submit it to Quicklisp in January 2016.
 
 ** Author
 
