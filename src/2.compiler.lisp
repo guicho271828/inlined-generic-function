@@ -80,6 +80,10 @@
                                 ,(improve-readability
                                   (#+sbcl
                                    sb-cltl2:macroexpand-all
+                                   ;; the use of macroexpand-all is only for
+                                   ;; the debugging purpose. the final
+                                   ;; compilation results should be the same
+                                   ;; for all implementations.
                                    #-sbcl
                                    progn
                                    (inline-discriminating-function
