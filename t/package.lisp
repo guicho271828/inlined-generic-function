@@ -148,3 +148,23 @@
 (test compiler
   (is (= 3 (length (primary-methods #'minus))))
   (print (inline-generic-function #'minus '(minus a b) nil)))
+
+
+
+(defgeneric ng-minus1 (a b)
+  (:generic-function-class inlined-generic-function))
+
+(defmethod ng-minus1 :around ((a number) (b number))
+  (call-next-method))
+
+(defgeneric ng-minus2 (a b)
+  (:generic-function-class inlined-generic-function))
+
+(defmethod ng-minus2 ((a number) (b number))
+  (call-next-method))
+
+(test inline-error
+  (signals error
+    (inline-generic-function #'ng-minus1 '(ng-minus1 a b) nil))
+  (signals error
+    (inline-generic-function #'ng-minus2 '(ng-minus2 a b) nil)))

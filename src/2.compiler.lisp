@@ -68,16 +68,20 @@ Returns an inlined form which is equivalent to calling the generic function."
           (mapcar (lambda (m)
                     (print
                      (improve-readability
-                      (sb-cltl2:macroexpand-all
-                       (print
-                        (inline-discriminating-function
-                         args
-                         (compute-effective-method
-                          gf method-combination
-                          ;; collect all methods of the same specifiers
-                          (compute-applicable-methods-using-classes
-                           gf (method-specializers m)))))))))
-                  (sort (primary-methods gf)
+                      (#+sbcl
+                       sb-cltl2:macroexpand-all
+                       #-sbcl
+                       progn
+                       (inline-discriminating-function
+                        whole
+                        args
+                        (compute-effective-method
+                         gf method-combination
+                         ;; collect all methods of the same specifiers
+                         (compute-applicable-methods-using-classes
+                          gf (method-specializers m))))))))
+                  (sort (or (primary-methods gf)
+                            (error "Failed to inline ~a: ~A is missing the primary methods" whole name))
                         (curry #'specializer<
                                lambda-list
                                argument-precedence-order))))
@@ -102,26 +106,46 @@ Returns an inlined form which is equivalent to calling the generic function."
         (reorder-specializers lambda-list precedence-order (method-specializers m1))
         (reorder-specializers lambda-list precedence-order (method-specializers m2))))
 
-(defun inline-discriminating-function (args form)
-  ;; something like:
-  ;; (CALL-METHOD #<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS :AROUND (NUMBER NUMBER) {1004ACD283}>
-  ;;              ((MAKE-METHOD
-  ;;                (CALL-METHOD #<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS (FLOAT FLOAT) {1004F759D3}>
-  ;;                             (#<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS (NUMBER NUMBER) {1004D856A3}>))))) 
-  (%call-method args `(make-method ,form) nil nil))
+;; something like:
+;; (CALL-METHOD #<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS :AROUND (NUMBER NUMBER) {1004ACD283}>
+;;              ((MAKE-METHOD
+;;                (CALL-METHOD #<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS (FLOAT FLOAT) {1004F759D3}>
+;;                             (#<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS (NUMBER NUMBER) {1004D856A3}>))))) 
 
-(defun %call-method (args method more-methods more-args)
+(defvar *current-inline-form*) ;; only here for printing informative errors
+(defun inline-discriminating-function (*current-inline-form* args form)
+  (%call-method args `(make-method ,form) nil))
+
+(defun %call-method (args method more-methods)
   (ematch method
     ((list 'make-method body)
-     `(lambda ,args
-        (macrolet ((call-method (method more-methods &rest more-args)
-                     (%call-method ',args method more-methods more-args)))
-          ,body)))
-    ((inlined-method lambda-expression*)
-     `(,lambda-expression* (list ,@args)
-                           ;;(list ,@more-methods)
-                           (list ,@(mapcar (lambda (m) (%call-method args m nil nil)) more-methods))
-                           ,@more-args))))
+     `((lambda ,args
+         (macrolet ((call-method (method more-methods)
+                      (let ((*current-inline-form* ',*current-inline-form*))
+                        (%call-method ',args method more-methods))))
+           ,body))
+       ,@args))
+    ((inlined-method lambda-expression)
+     `(macrolet (;; since everything is supposed to work in compile-time,
+                 ;; it can be a macrolet.
+                 (call-next-method (&rest args)
+                   (match ',more-methods
+                     ((list* next rest)
+                      (let ((*current-inline-form* ',*current-inline-form*))
+                        (%call-method args next rest)))
+                     (nil
+                      ;; This throws an compile-time error.
+                      ;; fixme: call no-next-method
+                      (error "Failed to inline ~a: no next method after ~a (~{~s~^ ~})!"
+                             ',*current-inline-form*
+                             ',(generic-function-name (method-generic-function method))
+                             ',(method-specializers method)))))
+                 (next-method-p ()
+                   ,(if more-methods t nil)))
+        ;; (declare (inline call-next-method next-method-p)
+        ;;          (ignorable #'call-next-method #'next-method-p)
+        ;;          (dynamic-extent #'call-next-method #'next-method-p))
+        (,lambda-expression ,@args)))))
 
 (defun improve-readability (form)
   (match form
