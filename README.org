@@ -7,6 +7,10 @@ dispatched in compile-time.  Although it currently supports only the
 ANSI CL, empirical analysis showed that the resulting code is up to *10
 times* faster than the normal generic function invocation.
 
+** Backgrounds and Motivation
+
+Generic functions are slow :(
+
 ** Usage
 
 The example code here is in =t/playground.lisp=.
