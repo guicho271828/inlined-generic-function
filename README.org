@@ -101,6 +101,10 @@ To see the actual compiler-macro expansion, use =inline-generic-function=.
              (+ A B)))))))) 
 #+END_SRC
 
+Since =ematch= from Trivia pattern matcher expands into thoroughly typed
+dispatching code, a sufficiently smart compiler would compile =+= into
+machine assembly, which is the case at least in SBCL.
+
 However, this is not so useful when you inline *all* generic functions (with
 metaclass =inlined-generic-function=) in order to build a highly optimized
 executable binary, because it would be painful to search around the use of
