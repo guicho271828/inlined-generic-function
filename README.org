@@ -1,7 +1,123 @@
 
-* Inlined-Generic-Function  - MOP implementation of the fast inlinable generic functions dispatched in compile-time
+* Inlined-Generic-Function
+
+MOP implementation of the fast inlinable generic functions dispatched in compile-time.
 
 ** Usage
+
+The example code here is in =t/playground.lisp=.
+
+First, declare the generic function with =inlined-generic-function= metaclass.
+
+#+BEGIN_SRC lisp
+(defgeneric minus (a b)
+  (:generic-function-class inlined-generic-function))
+#+END_SRC
+
+Define the methods as usual.
+
+#+BEGIN_SRC lisp
+(defmethod minus :around ((a number) (b number))
+  (print '(:around number number))
+  (call-next-method))
+(defmethod minus :around ((a fixnum) (b fixnum))
+  (print '(:around fixnum fixnum))
+  (call-next-method))
+
+(defmethod minus ((a number) (b number))
+  (- a b))
+(defmethod minus ((a fixnum) (b fixnum))
+  (- a b))
+(defmethod minus ((a float) (b float))
+  (- a b))
+#+END_SRC
+
+Define a function which uses it.
+
+#+BEGIN_SRC lisp
+(defun func-using-plus (a b)
+  (plus a b))
+#+END_SRC
+
+At this point the gf is not inlined.
+
+#+BEGIN_SRC lisp
+; disassembly for FUNC-USING-PLUS
+; Size: 35 bytes. Origin: #x10077272DB
+; DB:       498B4C2460       MOV RCX, [R12+96]                ; thread.binding-stack-pointer
+                                                              ; no-arg-parsing entry point
+; E0:       48894DF8         MOV [RBP-8], RCX
+; E4:       498BD0           MOV RDX, R8
+; E7:       488BFE           MOV RDI, RSI
+; EA:       488B058FFFFFFF   MOV RAX, [RIP-113]               ; #<FDEFINITION for PLUS>
+; F1:       B904000000       MOV ECX, 4
+; F6:       FF7508           PUSH QWORD PTR [RBP+8]
+; F9:       FF6009           JMP QWORD PTR [RAX+9]
+; FC:       CC10             BREAK 16                         ; Invalid argument count trap
+#+END_SRC
+
+Now its time to inline the gf. There's nothing different from the normal function.
+In order to inline the generic function, just declare it =inline= when using it.
+
+#+BEGIN_SRC lisp
+(defun func-using-plus (a b)
+  (declare (inline plus))
+  (plus a b))
+; disassembly for FUNC-USING-PLUS
+; Size: 1087 bytes. Origin: #x100824F8C1
+; 8C1:       498B4C2460       MOV RCX, [R12+96]               ; thread.binding-stack-pointer
+                                                              ; no-arg-parsing entry point
+; 8C6:       48894DF8         MOV [RBP-8], RCX
+; 8CA:       488B4DE0         MOV RCX, [RBP-32]
+; 8CE:       80F919           CMP CL, 25
+; 8D1:       7415             JEQ L0
+; 8D3:       8D41F1           LEA EAX, [RCX-15]
+; .....
+#+END_SRC
+
+To see the actual compiler-macro expansion, use =inline-generic-function=.
+
+#+BEGIN_SRC lisp
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(plus a b))))
+
+;; Inlining a generic function PLUS
+
+(LET ((#:A829 A) (#:B830 B))
+  (EMATCH* (#:A829 #:B830)
+    (((TYPE FLOAT) (TYPE FLOAT))
+     (LET ((#:A829 #:A829) (#:B830 #:B830))
+       (LET ((A #:A829) (B #:B830))
+         (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
+         (LET ((#:A829 #:A829) (#:B830 #:B830))
+           (LET ((A #:A829) (B #:B830))
+             (+ A B))))))
+    (((TYPE FIXNUM) (TYPE FIXNUM))
+     (LET ((#:A829 #:A829) (#:B830 #:B830))
+       (LET ((A #:A829) (B #:B830))
+         (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
+         (LET ((#:A829 #:A829) (#:B830 #:B830))
+           (LET ((A #:A829) (B #:B830))
+             (+ A B)))))))) 
+#+END_SRC
+
+However, this is not so useful when you inline *all* generic functions (with
+metaclass =inlined-generic-function=) in order to build a highly optimized
+executable binary, because it would be painful to search around the use of
+all generic functions and add an inline declaration one by one.
+
+For this purpose, the compiler macro recognizes =:inline-generic-function=
+flag in =*features*=.  Note that =notinline= is always respected: when
+declared =notinline=, the compiler macro declines and the code returns to
+the normal behavior.
+
+#+BEGIN_SRC lisp
+(push :inline-generic-function *features*)
+#+END_SRC
+
+Currently it supports the standard method combination with =:around= methods
+and the primary methods only.  Extensions are future work.
+
 
 ** Dependencies
 

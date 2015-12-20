@@ -132,10 +132,11 @@
   (:generic-function-class inlined-generic-function))
 
 (defmethod minus :around ((a number) (b number))
+  (print '(:around number number))
   (call-next-method))
 (defmethod minus :around ((a fixnum) (b fixnum))
+  (print '(:around fixnum fixnum))
   (call-next-method))
-
 
 (defmethod minus ((a number) (b number))
   (- a b))
@@ -143,7 +144,6 @@
   (- a b))
 (defmethod minus ((a float) (b float))
   (- a b))
-
 
 (test compiler
   (is (= 3 (length (primary-methods #'minus))))
