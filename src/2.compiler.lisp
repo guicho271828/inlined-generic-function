@@ -138,9 +138,9 @@
   (ematch method
     ((list 'make-method body)
      `(macrolet ((call-method (method more-methods)
-                      (let ((*current-inline-form* ',*current-inline-form*))
+                   (let ((*current-inline-form* ',*current-inline-form*))
                      (%call-method ',args method more-methods ',specs))))
-           ,body))
+        ,body))
     ((inlined-method :lambda-expression
                      (list* 'lambda l-args body))
      `(macrolet (;; since everything is supposed to work in compile-time,
