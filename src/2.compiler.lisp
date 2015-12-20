@@ -144,7 +144,13 @@
                    (match ',more-methods
                      ((list* next rest)
                       (let ((*current-inline-form* ',*current-inline-form*))
-                        (%call-method args next rest)))
+                        ;; FIXME: check this.
+                        ;; CLHS  Local Function CALL-NEXT-METHOD
+                        ;;  Neither argument defaulting, nor using setq,
+                        ;; nor rebinding variables with the same names as
+                        ;; parameters of the method affects the values
+                        ;; call-next-method passes to the method it calls.
+                        (%call-method (if args args ',args) next rest)))
                      (nil
                       ;; This throws an compile-time error.
                       ;; fixme: call no-next-method
