@@ -58,24 +58,30 @@ Returns an inlined form which is equivalent to calling the generic function."
   (block nil
     (ematch gf
       ((generic-function name
-                         methods
                          method-combination
                          lambda-list
                          argument-precedence-order)
        (format t "~&Inlining a generic function ~a~&" name)
-       ;; #+nil
-       (step
-        (mapcar (lambda (m)
-                  (compute-effective-method
-                   gf method-combination
-                   ;; collect all methods of the same specifiers
-                   (remove-if-not (curry #'equal (method-specializers m))
-                                  methods :key #'method-specializers)))
-                (sort (primary-methods gf)
-                      (curry #'specializer<
-                             lambda-list
-                             argument-precedence-order))))
-       whole))))
+       (let ((args (mapcar (lambda (sym) (gensym (symbol-name sym))) lambda-list)))
+         ;; #+nil
+         (step
+          (mapcar (lambda (m)
+                    (print
+                     (improve-readability
+                      (sb-cltl2:macroexpand-all
+                       (print
+                        (inline-discriminating-function
+                         args
+                         (compute-effective-method
+                          gf method-combination
+                          ;; collect all methods of the same specifiers
+                          (compute-applicable-methods-using-classes
+                           gf (method-specializers m)))))))))
+                  (sort (primary-methods gf)
+                        (curry #'specializer<
+                               lambda-list
+                               argument-precedence-order))))
+         whole)))))
 
 (defun primary-methods (gf)
   (ematch gf
@@ -96,75 +102,42 @@ Returns an inlined form which is equivalent to calling the generic function."
         (reorder-specializers lambda-list precedence-order (method-specializers m1))
         (reorder-specializers lambda-list precedence-order (method-specializers m2))))
 
+(defun inline-discriminating-function (args form)
+  ;; something like:
+  ;; (CALL-METHOD #<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS :AROUND (NUMBER NUMBER) {1004ACD283}>
+  ;;              ((MAKE-METHOD
+  ;;                (CALL-METHOD #<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS (FLOAT FLOAT) {1004F759D3}>
+  ;;                             (#<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS (NUMBER NUMBER) {1004D856A3}>))))) 
+  (%call-method args `(make-method ,form) nil nil))
 
+(defun %call-method (args method more-methods more-args)
+  (ematch method
+    ((list 'make-method body)
+     `(lambda ,args
+        (macrolet ((call-method (method more-methods &rest more-args)
+                     (%call-method ',args method more-methods more-args)))
+          ,body)))
+    ((inlined-method lambda-expression*)
+     `(,lambda-expression* (list ,@args)
+                           ;;(list ,@more-methods)
+                           (list ,@(mapcar (lambda (m) (%call-method args m nil nil)) more-methods))
+                           ,@more-args))))
 
-;; specializers are basically classes.
-
-;; (defgeneric aaa (a))
-;; (defmethod aaa ((a (not fixnum))) ;; ->| error
-;;   (print a))
-
-;; for methods (fixnum fixnum) (float float) (number number) with the
-;; standard method combination, construct the following tree:
-
-;; (ematch* (arg1 arg2)
-;;   (((and arg1 (type number)) (and arg2 (type number)))
-;;    (flet ((call-next-method (arg1 arg2)
-;;             (ematch* (arg1 arg2)
-;;               (((type fixnum) (type fixnum))
-;;                ;; inline primary
-;;                )
-;;               (((type float) (type float))
-;;                ;; inline primary
-;;                ))))
-;;      ;; inline some around-method here
-;;      (,(method-lambda-expression m) arg1 arg2)
-;;      )))
-
-;; make-method-lambda ?
-
-;; the method-lambda-expression contains calls to call-method and make-method.
-;; we should handle this efficiently.
-
-
-#|
-
-the possible type specifiers here are
-
- (fixnum fixnum) and (float float).
- it does not contain (number number) because it does not have a primary method.
- when the method combination dictates teh primary method is not required, then it is ok...
- 
- there is implictly (t t) which should signal a NO-PRIMARY-METHOD.
-
-
-|#
-;; method-combination
-       
-
-       ;;    (CALL-METHOD
-       ;;     #<INLINED-METHOD
-       ;;       INLINED-GENERIC-FUNCTION.TEST::PLUS :AROUND (NUMBER
-       ;;                                                    NUMBER)
-       ;;       {100783FFB3}>
-       ;;     ((MAKE-METHOD
-       ;;       (CALL-METHOD
-       ;;        #<INLINED-METHOD
-       ;;          INLINED-GENERIC-FUNCTION.TEST::PLUS (FLOAT FLOAT)
-       ;;          {1007852073}>
-       ;;        (#<INLINED-METHOD
-       ;;           INLINED-GENERIC-FUNCTION.TEST::PLUS (FIXNUM FIXNUM)
-       ;;           {1007849103}>)))))
-
-       ;; (compute-applicable-methods-using-classes gf )
-       
-       
-       ;; (when (method-combination )
-       ;;   (simple-style-warning "Failed to inline ~a: Generic function contails lambda-list-keywords ~{~A~^, ~}."
-       ;;                         whole keywords)
-       ;;   (return-from compile-generic-function whole))
-       ;; `(match* ,args
-       ;;    ;; body
-       ;;    ;; FIXME: as a starting point, allow only the standard method combination with primary methods
-       ;;    
-       ;;    )
+(defun improve-readability (form)
+  (match form
+    ((list 'progn form)
+     (improve-readability form))
+    ((list* 'macrolet _ body)
+     (improve-readability
+      `(progn ,@body)))
+    ((list* (list* 'lambda lambda-args body) args)
+     (improve-readability
+     `(let ,(mapcar #'list lambda-args args)
+        ,@body)))
+    ((cons _ _)
+     (mapcar #'improve-readability form)
+     ;; (cons (improve-readability car)
+     ;;       (improve-readability cdr))
+     )
+    ((type atom)
+     form)))

@@ -20,5 +20,6 @@
    #:inlined-method
    #:method-lambda-expression
    #:primary-methods
-   #:inline-generic-function))
+   #:inline-generic-function
+   #:method-lambda-expression*))
 

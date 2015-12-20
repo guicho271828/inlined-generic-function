@@ -55,6 +55,8 @@
            (prog1
              (print
               (method-lambda-expression m))
+             (print
+              (method-lambda-expression* m))
              (fresh-line)))
          (with-output-to-string (s)
            (format s "~&Failed to get the inlining form!~&")
@@ -81,6 +83,8 @@
            (prog1
              (print
               (method-lambda-expression m))
+             (print
+              (method-lambda-expression* m))
              (fresh-line)))
          (with-output-to-string (s)
            (format s "~&Failed to get the inlining form!~&")
@@ -107,6 +111,8 @@
            (prog1
              (print
               (method-lambda-expression m))
+             (print
+              (method-lambda-expression* m))
              (fresh-line)))
          (with-output-to-string (s)
            (format s "~&Failed to get the inlining form!~&")
@@ -126,17 +132,19 @@
   (:generic-function-class inlined-generic-function))
 
 (defmethod minus :around ((a number) (b number))
-  (format t "~&(minus ~a ~a) is called~&" (type-of a) (type-of b))
   (call-next-method))
+(defmethod minus :around ((a fixnum) (b fixnum))
+  (call-next-method))
+
+
+(defmethod minus ((a number) (b number))
+  (- a b))
 (defmethod minus ((a fixnum) (b fixnum))
   (- a b))
-(defmethod minus :around ((a fixnum) (b fixnum))
-  (format t "~&(minus ~a ~a) is called (fixnum specific)~&" (type-of a) (type-of b))
-  (call-next-method))
 (defmethod minus ((a float) (b float))
   (- a b))
 
 
 (test compiler
-  (is (= 2 (length (primary-methods #'minus))))
+  (is (= 3 (length (primary-methods #'minus))))
   (print (inline-generic-function #'minus '(minus a b) nil)))

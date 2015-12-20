@@ -25,9 +25,12 @@
   (:metaclass funcallable-standard-class))
 
 (defclass inlined-method (standard-method)
-     ((method-lambda-expression :initarg :method-lambda-expression
-                                :accessor method-lambda-expression
-                                :documentation "method lambda expression (a form) for later inlining"))
+     ((lambda-expression :initarg :method-lambda-expression
+                         :accessor method-lambda-expression
+                         :documentation "original lambda expression w/o decoration e.g. call-next-method")
+      (lambda-expression* :initarg :method-lambda-expression*
+                          :accessor method-lambda-expression*
+                          :documentation "Cached result of make-method-lambda"))
   (:documentation "A metaobject representing inlinable method."))
 
 (defmethod make-method-lambda ((gf inlined-generic-function)
@@ -39,6 +42,7 @@
       (values form
               (list*
                :method-lambda-expression lambda-expression
+               :method-lambda-expression* form
                initargs))))
 
 (defmethod ensure-generic-function-using-class :after ((gf inlined-generic-function)
