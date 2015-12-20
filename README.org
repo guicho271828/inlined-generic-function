@@ -111,7 +111,8 @@ executable binary, because it would be painful to search around the use of
 all generic functions and add an inline declaration one by one.
 
 For this purpose, the compiler macro recognizes =:inline-generic-function=
-flag in =*features*=.  Note that =notinline= is always respected: when
+flag in =*features*=. When this feature is present, all inlinable generic
+functions are inlined.  Note that =notinline= is always respected: When
 declared =notinline=, the compiler macro declines and the code returns to
 the normal behavior.
 
