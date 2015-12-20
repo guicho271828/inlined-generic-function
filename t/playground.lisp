@@ -33,7 +33,7 @@
   (plus a b))
 
 (let ((*features* (cons :inline-generic-function *features*)))
-  (print (inline-generic-function '(plus a b))))
+  (print (inline-generic-function '(plus (1+ a) (1- b)))))
 
 (print (function-information 'plus))
 
