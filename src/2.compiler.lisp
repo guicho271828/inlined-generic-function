@@ -93,7 +93,8 @@
                                      gf method-combination
                                      ;; collect all methods of the same specifiers
                                      (compute-applicable-methods-using-classes
-                                      gf (method-specializers m))))))))))
+                                      gf (method-specializers m)))
+                                    specializers)))))))
                         (sort (or (primary-methods gf)
                                   (error "Failed to inline ~a: ~A is missing the primary methods" whole name))
                               (curry #'specializer<
@@ -129,15 +130,16 @@
 ;;                             (#<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS (NUMBER NUMBER) {1004D856A3}>))))) 
 
 (defvar *current-inline-form*) ;; only here for printing informative errors
-(defun inline-discriminating-function (*current-inline-form* args form)
-  (%call-method args `(make-method ,form) nil))
+(defun inline-discriminating-function (*current-inline-form* args form specs)
+  "Corresponds to compute-discriminating-function in AMOP"
+  (%call-method args `(make-method ,form) nil specs))
 
-(defun %call-method (args method more-methods)
+(defun %call-method (args method more-methods specs)
   (ematch method
     ((list 'make-method body)
      `(macrolet ((call-method (method more-methods)
                       (let ((*current-inline-form* ',*current-inline-form*))
-                        (%call-method ',args method more-methods))))
+                     (%call-method ',args method more-methods ',specs))))
            ,body))
     ((inlined-method :lambda-expression
                      (list* 'lambda l-args body))
@@ -153,7 +155,7 @@
                         ;; nor rebinding variables with the same names as
                         ;; parameters of the method affects the values
                         ;; call-next-method passes to the method it calls.
-                        (%call-method (if args args ',args) next rest)))
+                        (%call-method (if args args ',args) next rest ',specs)))
                      (nil
                       ;; This throws an compile-time error.
                       ;; fixme: call no-next-method
@@ -167,6 +169,10 @@
         ;;          (ignorable #'call-next-method #'next-method-p)
         ;;          (dynamic-extent #'call-next-method #'next-method-p))
         (let ,(mapcar #'list l-args args)
+          ,@(mapcar (lambda (spec arg)
+                      `(declare (type ,(class-name spec) ,arg)))
+                    specs
+                    l-args)
           ,@body)))))
 
 (defun improve-readability (form)
