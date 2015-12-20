@@ -6,11 +6,10 @@
 
 (defgeneric dummy ())
 
-(defun inline-generic-function (gf-orig whole env)
-  "This function should be partially evaluated to be a correct compiler function.
-Returns an inlined form which is equivalent to calling the generic function."
-  (declare (ignorable gf-orig whole env)) 
-  (let ((forced t #+nil (member :inline-generic-function *features*)))
+(defun inline-generic-function (whole env)
+  "Returns an inlined form which is equivalent to calling the generic function."
+  (declare (ignorable whole env)) 
+  (let ((forced (member :inline-generic-function *features*)))
     (flet ((s-s-w? (&rest args)
              (when forced (apply #'simple-style-warning args))))
       (match whole
@@ -55,37 +54,41 @@ Returns an inlined form which is equivalent to calling the generic function."
 
 (defun compile-generic-function (gf args env whole)
   (declare (ignorable gf args env whole))
-  (block nil
+  (restart-case
     (ematch gf
       ((generic-function name
                          method-combination
                          lambda-list
                          argument-precedence-order)
        (format t "~&Inlining a generic function ~a~&" name)
-       (let ((args (mapcar (lambda (sym) (gensym (symbol-name sym))) lambda-list)))
-         ;; #+nil
-         (step
-          (mapcar (lambda (m)
-                    (print
-                     (improve-readability
-                      (#+sbcl
-                       sb-cltl2:macroexpand-all
-                       #-sbcl
-                       progn
-                       (inline-discriminating-function
-                        whole
-                        args
-                        (compute-effective-method
-                         gf method-combination
-                         ;; collect all methods of the same specifiers
-                         (compute-applicable-methods-using-classes
-                          gf (method-specializers m))))))))
-                  (sort (or (primary-methods gf)
-                            (error "Failed to inline ~a: ~A is missing the primary methods" whole name))
-                        (curry #'specializer<
-                               lambda-list
-                               argument-precedence-order))))
-         whole)))))
+       (let ((gensyms (mapcar (lambda (sym) (gensym (symbol-name sym))) lambda-list)))
+         `(let ,(mapcar #'list gensyms args)
+            (ematch* ,gensyms
+              ,@(mapcar (lambda (m)
+                          (ematch m
+                            ((method specializers)
+                             `(,(mapcar (lambda (c) `(type ,(class-name c))) specializers)
+                                ,(improve-readability
+                                  (#+sbcl
+                                   sb-cltl2:macroexpand-all
+                                   #-sbcl
+                                   progn
+                                   (inline-discriminating-function
+                                    whole
+                                    gensyms
+                                    (compute-effective-method
+                                     gf method-combination
+                                     ;; collect all methods of the same specifiers
+                                     (compute-applicable-methods-using-classes
+                                      gf (method-specializers m))))))))))
+                        (sort (or (primary-methods gf)
+                                  (error "Failed to inline ~a: ~A is missing the primary methods" whole name))
+                              (curry #'specializer<
+                                     lambda-list
+                                     argument-precedence-order))))))))
+    (continue ()
+      :report "Decline inlining"
+      whole)))
 
 (defun primary-methods (gf)
   (ematch gf
@@ -158,6 +161,9 @@ Returns an inlined form which is equivalent to calling the generic function."
      (improve-readability
      `(let ,(mapcar #'list lambda-args args)
         ,@body)))
+    ((list* 'let nil body)
+     (improve-readability
+      `(progn ,@body)))
     ((cons _ _)
      (mapcar #'improve-readability form)
      ;; (cons (improve-readability car)

@@ -51,7 +51,7 @@
 It sets up the compiler macro for this generic function."
   (declare (ignorable rest))
   (setf (compiler-macro-function fun-name)
-        (curry #'inline-generic-function gf)))
+        #'inline-generic-function))
 
 
 
