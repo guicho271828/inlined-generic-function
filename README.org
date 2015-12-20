@@ -7,7 +7,7 @@ a fast binary and do not need the dynamism, the dynamic dispatch in the
 generic functions should be statically compiled away.
 
 We propose a MOP-based implementation of fast inlined generic functions
-dispatched in compile-time. The amount required to inline your generic
+dispatched in compile-time. The amount of work required to inline your generic
 function is minimal. Although it currently supports only the =:around= and
 primary methods of the standard method combination defined in ANSI CL,
 empirical analysis showed that the resulting code is up to *10 times*
