@@ -199,7 +199,6 @@ amount of computation, we consider the processor cycles only.  We found
 that the cost of generic function invocation is considerably low when an
 =inlined-generic-function= is invoked with =inline= declaration.
 
-|                                        |              <r> |     <r> |
 | metaclass and inline declaration       | processor cycles | consing |
 |----------------------------------------+------------------+---------|
 | standard-generic-function, not inlined |          742,285 |       0 |
