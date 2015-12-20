@@ -10,26 +10,21 @@ The example code here is in =t/playground.lisp=.
 First, declare the generic function with =inlined-generic-function= metaclass.
 
 #+BEGIN_SRC lisp
-(defgeneric minus (a b)
+(defgeneric plus (a b)
   (:generic-function-class inlined-generic-function))
 #+END_SRC
 
 Define the methods as usual.
 
 #+BEGIN_SRC lisp
-(defmethod minus :around ((a number) (b number))
-  (print '(:around number number))
-  (call-next-method))
-(defmethod minus :around ((a fixnum) (b fixnum))
-  (print '(:around fixnum fixnum))
+(defmethod plus :around ((a number) (b number))
+  (format t "~&(plus ~a ~a) is called~&" (type-of a) (type-of b))
   (call-next-method))
 
-(defmethod minus ((a number) (b number))
-  (- a b))
-(defmethod minus ((a fixnum) (b fixnum))
-  (- a b))
-(defmethod minus ((a float) (b float))
-  (- a b))
+(defmethod plus ((a fixnum) (b fixnum))
+  (+ a b))
+(defmethod plus ((a float) (b float))
+  (+ a b))
 #+END_SRC
 
 Define a function which uses it.
@@ -83,38 +78,49 @@ To see the actual compiler-macro expansion, use =inline-generic-function=.
 
 ;; Inlining a generic function PLUS
 
-(LET ((#:A829 A) (#:B830 B))
-  (EMATCH* (#:A829 #:B830)
+(LET ((#:A1734 (1+ A)) (#:B1735 (1- B)))
+  (EMATCH* (#:A1734 #:B1735)
     (((TYPE FLOAT) (TYPE FLOAT))
-     (LET ((#:A829 #:A829) (#:B830 #:B830))
-       (LET ((A #:A829) (B #:B830))
+     (LET ((A #:A1734) (B #:B1735))
+       (DECLARE (TYPE FLOAT A))
+       (DECLARE (TYPE FLOAT B))
          (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
-         (LET ((#:A829 #:A829) (#:B830 #:B830))
-           (LET ((A #:A829) (B #:B830))
-             (+ A B))))))
+       (LET ((A #:A1734) (B #:B1735))
+         (DECLARE (TYPE FLOAT A))
+         (DECLARE (TYPE FLOAT B))
+         (+ A B))))
     (((TYPE FIXNUM) (TYPE FIXNUM))
-     (LET ((#:A829 #:A829) (#:B830 #:B830))
-       (LET ((A #:A829) (B #:B830))
+     (LET ((A #:A1734) (B #:B1735))
+       (DECLARE (TYPE FIXNUM A))
+       (DECLARE (TYPE FIXNUM B))
          (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
-         (LET ((#:A829 #:A829) (#:B830 #:B830))
-           (LET ((A #:A829) (B #:B830))
-             (+ A B)))))))) 
+       (LET ((A #:A1734) (B #:B1735))
+         (DECLARE (TYPE FIXNUM A))
+         (DECLARE (TYPE FIXNUM B))
+         (+ A B))))))
 #+END_SRC
 
 Since =ematch= from Trivia pattern matcher expands into thoroughly typed
 dispatching code, a sufficiently smart compiler would compile =+= into
 machine assembly, which is the case at least in SBCL.
 
-However, this is not so useful when you inline *all* generic functions (with
-metaclass =inlined-generic-function=) in order to build a highly optimized
-executable binary, because it would be painful to search around the use of
-all generic functions and add an inline declaration one by one.
+Note that this expansion does not contain the dispatch for =(NUMBER
+NUMBER)= because it does not have the primary function and therefore
+signals an error in the ordinary generic function. This behavior is instead
+covered by the error signalled by =EMATCH=.
 
-For this purpose, the compiler macro recognizes =:inline-generic-function=
-flag in =*features*=. When this feature is present, all inlinable generic
-functions are inlined.  Note that =notinline= is always respected: When
-declared =notinline=, the compiler macro declines and the code returns to
-the normal behavior.
+Next, marking the usage =inline= is not so useful when you inline *all*
+generic functions (with metaclass =inlined-generic-function=) in order to
+build a highly optimized executable binary, because it would be painful to
+search around the use of all generic functions and add an inline
+declaration one by one. Also, during the development you generally do not
+want to make them inlined, since the inlined code become obsoleted when the
+generic function changes.
+
+Therefore, the compiler macro recognizes =:inline-generic-function= flag in
+=*features*=. When this feature is present, all inlinable generic functions
+are inlined unless it is declared =notinline=. When declared =notinline=,
+the compiler macro declines and the code returns to the normal behavior.
 
 #+BEGIN_SRC lisp
 (push :inline-generic-function *features*)
