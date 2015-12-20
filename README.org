@@ -1,19 +1,16 @@
 
 * Inlined-Generic-Function
 
+Generic functions are convenient but slow.  During the development we
+usually want the full dynamic feature of CLOS. However, when we really need
+a fast binary and do not need the dynamism, the dynamic dispatch in the
+generic functions should be statically compiled away.
+
 We propose a MOP-based implementation of fast inlined generic functions
 dispatched in compile-time.  Although it currently supports only the
 =:around= and primary methods of the standard method combination defined in
 ANSI CL, empirical analysis showed that the resulting code is up to *10
 times* faster than the normal generic function invocation.
-
-** Backgrounds and Motivation
-
-Generic functions are slow :(
-
-During the development I want the full dynamic feature of CLOS but during
-experiments it should be statically inlined into the code which has least
-overhead as possible.
 
 ** Usage
 
