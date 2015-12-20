@@ -1,5 +1,18 @@
 (in-package :inlined-generic-function.impl)
 
+(defmacro break+ (&rest args)
+  (let* ((last-form (lastcar args))
+         (last last-form)
+         (butlast (butlast args)))
+    (once-only (last)
+      `(progn
+         (break "~@{~a~%~<;;~@; -> ~4i~:@_~a~;~:>~2%~}"
+                ,@(iter (for arg in butlast)
+                        (collect `',arg)
+                        (collect `(list ,arg)))
+                ',last-form (list ,last))
+         ,last))))
+
 ;; target: implementing an inlined gf, a subclass of standard-generic-function
 ;; cf.
 ;; http://metamodular.com/CLOS-MOP/chapter-6.html

@@ -25,6 +25,17 @@
 
 (push :inline-generic-function *features*)
 
+(defgeneric normal-plus (a b))
+
+(defmethod normal-plus :around ((a number) (b number))
+  (format t "~&(normal-plus ~a ~a) is called~&" (type-of a) (type-of b))
+  (call-next-method))
+(defmethod normal-plus ((a fixnum) (b fixnum))
+  (+ a b))
+(defmethod normal-plus ((a float) (b float))
+  (+ a b))
+
+
 (defgeneric plus (a b)
   (:generic-function-class inlined-generic-function))
 
@@ -127,5 +138,5 @@
 
 
 (test compiler
-  ;; only 1 (fixnum fixnum)
-  (is (= 3 (length (all-specializers #'minus)))))
+  (is (= 2 (length (primary-methods #'minus))))
+  (print (inline-generic-function #'minus '(minus a b) nil)))
