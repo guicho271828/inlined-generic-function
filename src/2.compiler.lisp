@@ -135,13 +135,12 @@
 (defun %call-method (args method more-methods)
   (ematch method
     ((list 'make-method body)
-     `((lambda ,args
-         (macrolet ((call-method (method more-methods)
+     `(macrolet ((call-method (method more-methods)
                       (let ((*current-inline-form* ',*current-inline-form*))
                         (%call-method ',args method more-methods))))
            ,body))
-       ,@args))
-    ((inlined-method lambda-expression)
+    ((inlined-method :lambda-expression
+                     (list* 'lambda l-args body))
      `(macrolet (;; since everything is supposed to work in compile-time,
                  ;; it can be a macrolet.
                  (call-next-method (&rest args)
@@ -167,7 +166,8 @@
         ;; (declare (inline call-next-method next-method-p)
         ;;          (ignorable #'call-next-method #'next-method-p)
         ;;          (dynamic-extent #'call-next-method #'next-method-p))
-        (,lambda-expression ,@args)))))
+        (let ,(mapcar #'list l-args args)
+          ,@body)))))
 
 (defun improve-readability (form)
   (match form
@@ -176,13 +176,16 @@
     ((list* 'macrolet _ body)
      (improve-readability
       `(progn ,@body)))
-    ((list* (list* 'lambda lambda-args body) args)
-     (improve-readability
-     `(let ,(mapcar #'list lambda-args args)
-        ,@body)))
-    ((list* 'let nil body)
-     (improve-readability
-      `(progn ,@body)))
+    ;; ((list* (list* 'lambda lambda-args body) args)
+    ;;  (improve-readability
+    ;;  `(let ,(mapcar #'list lambda-args args)
+    ;;     ,@body)))
+    ;; ((list* 'let nil body)
+    ;;  (improve-readability
+    ;;   `(progn ,@body)))
+    ;; ((list* 'let (list* (list var (eq var)) rest) body)
+    ;;  (improve-readability
+    ;;   `(let ,rest ,@body)))
     ((cons _ _)
      (mapcar #'improve-readability form)
      ;; (cons (improve-readability car)
