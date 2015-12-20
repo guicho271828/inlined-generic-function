@@ -6,7 +6,7 @@
 
 (defgeneric dummy ())
 
-(defun inline-generic-function (whole env)
+(defun inline-generic-function (whole &optional env)
   "Returns an inlined form which is equivalent to calling the generic function."
   (declare (ignorable whole env)) 
   (let ((forced (member :inline-generic-function *features*)))
@@ -21,9 +21,18 @@
                      (type-of fdef) type
                      (multiple-value-list
                       (function-information name env))
-                     (list binding ;The first indicates the type of function definition or binding
-                           local   ;The second value is true if NAME is bound locally.
-                           (assoc 'inline inline))))
+                     (or (list binding ;The first indicates the type of function definition or binding
+                               local   ;The second value is true if NAME is bound locally.
+                               (assoc 'inline inline))
+                         (and (list binding
+                                    local)
+                              (<> inline nil))
+                         (and (list binding)
+                              (<> local nil)
+                              (<> inline nil))
+                         (and (<> binding nil)
+                              (<> local nil)
+                              (<> inline nil)))))
          (ematch* (fdef binding local inline)
            (((not (type inlined-generic-function)))
             (s-s-w? "Failed to inline ~a: ~a is a ~a, not ~a." whole name type 'inlined-generic-function))
