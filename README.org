@@ -11,11 +11,18 @@ times* faster than the normal generic function invocation.
 
 Generic functions are slow :(
 
+During the development I want the full dynamic feature of CLOS but during
+experiments it should be statically inlined into the code which has least
+overhead as possible.
+
 ** Usage
 
 The example code here is in =t/playground.lisp=.
 
-First, declare the generic function with =inlined-generic-function= metaclass.
+First, declare the generic function with =inlined-generic-function=
+metaclass.  This metaclass is a subclass of
+=standard-generic-function=. Therefore, unless you use its special feature,
+it acts exactly the same as the normal generic functions.
 
 #+BEGIN_SRC lisp
 (defgeneric plus (a b)
