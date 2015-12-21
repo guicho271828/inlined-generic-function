@@ -51,17 +51,13 @@ At this point the gf is not inlined.
 
 #+BEGIN_SRC lisp
 ; disassembly for FUNC-USING-PLUS
-; Size: 35 bytes. Origin: #x10077272DB
-; DB:       498B4C2460       MOV RCX, [R12+96]                ; thread.binding-stack-pointer
-                                                              ; no-arg-parsing entry point
-; E0:       48894DF8         MOV [RBP-8], RCX
-; E4:       498BD0           MOV RDX, R8
-; E7:       488BFE           MOV RDI, RSI
-; EA:       488B058FFFFFFF   MOV RAX, [RIP-113]               ; #<FDEFINITION for PLUS>
-; F1:       B904000000       MOV ECX, 4
-; F6:       FF7508           PUSH QWORD PTR [RBP+8]
-; F9:       FF6009           JMP QWORD PTR [RAX+9]
-; FC:       CC10             BREAK 16                         ; Invalid argument count trap
+; Size: 24 bytes. Origin: #x100A75A165
+; 65:       488BD1           MOV RDX, RCX                     ; no-arg-parsing entry point
+; 68:       488BFB           MOV RDI, RBX
+; 6B:       488B059EFFFFFF   MOV RAX, [RIP-98]                ; #<FDEFINITION for PLUS>
+; 72:       B904000000       MOV ECX, 4
+; 77:       FF7508           PUSH QWORD PTR [RBP+8]
+; 7A:       FF6009           JMP QWORD PTR [RAX+9]
 #+END_SRC
 
 Now its time to inline the gf. There's nothing different from inlining a normal function.
@@ -71,15 +67,11 @@ In order to inline the generic function, just declare it =inline= when you use i
 (defun func-using-plus (a b)
   (declare (inline plus))
   (plus a b))
-; disassembly for FUNC-USING-PLUS
-; Size: 1087 bytes. Origin: #x100824F8C1
-; 8C1:       498B4C2460       MOV RCX, [R12+96]               ; thread.binding-stack-pointer
-                                                              ; no-arg-parsing entry point
-; 8C6:       48894DF8         MOV [RBP-8], RCX
-; 8CA:       488B4DE0         MOV RCX, [RBP-32]
-; 8CE:       80F919           CMP CL, 25
-; 8D1:       7415             JEQ L0
-; 8D3:       8D41F1           LEA EAX, [RCX-15]
+; disassembly for FUNC-USING-INLINED-PLUS
+; Size: 323 bytes. Origin: #x1002C3BD45
+; D45:       8D41F1           LEA EAX, [RCX-15]               ; no-arg-parsing entry point
+; D48:       A80F             TEST AL, 15
+; D4A:       755F             JNE L2
 ; .....
 #+END_SRC
 
@@ -119,8 +111,35 @@ To see the actual compiler-macro expansion, use =inline-generic-function=.
 
 Note that this expansion does not contain the dispatch for =(NUMBER
 NUMBER)= because it does not have the primary function and therefore
-signals an error in the ordinary generic function. This behavior is instead
+signals an error if the GF were the ordinary generic function. This behavior is instead
 covered by the error signalled by =EMATCH=.
+
+Moreover, thanks to the nature of inlining, smart compilers like sbcl can
+detect certain branches are not reachable, thus removing the checks and
+reducing the code size.  In the example below, the code for dispatching
+DOUBLE-FLOAT is removed.
+
+#+BEGIN_SRC lisp
+(defun func-using-inlined-plus-and-type-added (a b)
+  " ; disassembly for FUNC-USING-INLINED-PLUS-AND-TYPE-ADDED
+; Size: 29 bytes. Origin: #x10031E7788
+; 88:       4801F9           ADD RCX, RDI                     ; no-arg-parsing entry point
+; 8B:       488BD1           MOV RDX, RCX
+; 8E:       48D1E2           SHL RDX, 1
+; 91:       710C             JNO L0
+; 93:       488BD1           MOV RDX, RCX
+; 96:       41BB70060020     MOV R11D, 536872560              ; ALLOC-SIGNED-BIGNUM-IN-RDX
+; 9C:       41FFD3           CALL R11
+; 9F: L0:   488BE5           MOV RSP, RBP
+; A2:       F8               CLC
+; A3:       5D               POP RBP
+; A4:       C3               RET
+"
+  (declare (inline plus))
+  (declare (optimize (speed 3) (safety 0)))
+  (declare (type fixnum a b))
+  (plus a b))
+#+END_SRC
 
 Next, marking the usage =inline= is not so useful when you inline *all*
 generic functions (with metaclass =inlined-generic-function=) in order to

@@ -26,12 +26,40 @@
   (+ a b))
 
 (defun func-using-plus (a b)
+  "; Size: 24 bytes. Origin: #x100914B7A5"
   (declare (optimize (speed 3) (safety 0)))
   (plus a b))
 
 (defun func-using-inlined-plus (a b)
+  "; Size: 323 bytes. Origin: #x1009614DA5"
   (declare (inline plus))
   (declare (optimize (speed 3) (safety 0)))
+  (plus a b))
+
+(defun func-using-inlined-plus-and-type-added (a b)
+  "Thanks to the nature of inlining,
+smart compilers like sbcl can detect certain branches are not reachable,
+thus removing the checks and reducing the code size.
+
+In this example, the code for dispatching DOUBLE-FLOAT is removed.
+
+; disassembly for FUNC-USING-INLINED-PLUS-AND-TYPE-ADDED
+; Size: 29 bytes. Origin: #x10031E7788
+; 88:       4801F9           ADD RCX, RDI                     ; no-arg-parsing entry point
+; 8B:       488BD1           MOV RDX, RCX
+; 8E:       48D1E2           SHL RDX, 1
+; 91:       710C             JNO L0
+; 93:       488BD1           MOV RDX, RCX
+; 96:       41BB70060020     MOV R11D, 536872560              ; ALLOC-SIGNED-BIGNUM-IN-RDX
+; 9C:       41FFD3           CALL R11
+; 9F: L0:   488BE5           MOV RSP, RBP
+; A2:       F8               CLC
+; A3:       5D               POP RBP
+; A4:       C3               RET
+"
+  (declare (inline plus))
+  (declare (optimize (speed 3) (safety 0)))
+  (declare (type fixnum a b))
   (plus a b))
 
 (let ((*features* (cons :inline-generic-function *features*)))
@@ -81,4 +109,7 @@
 (sb-ext:gc :full t)
 
 (benchmark)
+
+
+
 
