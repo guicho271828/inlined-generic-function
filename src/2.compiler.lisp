@@ -72,11 +72,12 @@
        (format t "~&Inlining a generic function ~a~&" name)
        (let ((gensyms (mapcar (lambda (sym) (gensym (symbol-name sym))) lambda-list)))
          `(let ,(mapcar #'list gensyms args)
-            (ematch* ,gensyms
+            (ematch* ,(reorder-to-precedence lambda-list argument-precedence-order gensyms)
               ,@(mapcar (lambda (m)
                           (ematch m
                             ((method specializers)
-                             `(,(mapcar (lambda (c) `(type ,(class-name c))) specializers)
+                             `(,(mapcar (lambda (c) `(type ,(class-name c)))
+                                        (reorder-to-precedence lambda-list argument-precedence-order specializers))
                                 ,(improve-readability
                                   (#+sbcl
                                    sb-cltl2:macroexpand-all
@@ -109,7 +110,7 @@
     ((generic-function methods)
      (remove-if #'method-qualifiers methods))))
 
-(defun reorder-specializers (lambda-list precedence-order specializers)
+(defun reorder-to-precedence (lambda-list precedence-order specializers)
   (assert (= (length lambda-list) (length specializers) (length precedence-order)))
   (mapcar (lambda (arg)
             (elt specializers (position arg lambda-list)))
@@ -120,8 +121,8 @@
   (some (lambda (a b)
           (and (subtypep a b)
                (not (subtypep b a))))
-        (reorder-specializers lambda-list precedence-order (method-specializers m1))
-        (reorder-specializers lambda-list precedence-order (method-specializers m2))))
+        (reorder-to-precedence lambda-list precedence-order (method-specializers m1))
+        (reorder-to-precedence lambda-list precedence-order (method-specializers m2))))
 
 ;; something like:
 ;; (CALL-METHOD #<INLINED-METHOD INLINED-GENERIC-FUNCTION.TEST::MINUS :AROUND (NUMBER NUMBER) {1004ACD283}>
