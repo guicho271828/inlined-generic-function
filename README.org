@@ -31,7 +31,7 @@ Define the methods as usual.
 
 #+BEGIN_SRC lisp
 (defmethod plus :around ((a number) (b number))
-  (format t "~&(plus ~a ~a) is called~&" (type-of a) (type-of b))
+  (+ a b) ;; not a meaningful operation...
   (call-next-method))
 
 (defmethod plus ((a fixnum) (b fixnum))
@@ -89,7 +89,7 @@ To see the actual compiler-macro expansion, use =inline-generic-function=.
      (LET ((A #:A1734) (B #:B1735))
        (DECLARE (TYPE FLOAT A))
        (DECLARE (TYPE FLOAT B))
-       (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
+       (+ A B)
        (LET ((A #:A1734) (B #:B1735))
          (DECLARE (TYPE FLOAT A))
          (DECLARE (TYPE FLOAT B))
@@ -98,7 +98,7 @@ To see the actual compiler-macro expansion, use =inline-generic-function=.
      (LET ((A #:A1734) (B #:B1735))
        (DECLARE (TYPE FIXNUM A))
        (DECLARE (TYPE FIXNUM B))
-       (FORMAT T "~&(plus ~a ~a) is called~&" (TYPE-OF A) (TYPE-OF B))
+       (+ A B)
        (LET ((A #:A1734) (B #:B1735))
          (DECLARE (TYPE FIXNUM A))
          (DECLARE (TYPE FIXNUM B))
