@@ -113,3 +113,26 @@ In this example, the code for dispatching DOUBLE-FLOAT is removed.
 
 
 
+;;;;; check precedence order
+
+(defgeneric testgf-inlined (a b)
+  (:generic-function-class inlined-generic-function)
+  (:argument-precedence-order b a))
+(defmethod testgf-inlined ((a fixnum) (b number)) (list a b 1))
+(defmethod testgf-inlined ((a number) (b fixnum)) (list a b 2))
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(testgf-inlined (1+ x) (1- y)))))
+
+;; (LET ((#:A770 (1+ X)) (#:B771 (1- Y)))
+;;   (EMATCH* (#:B771 #:A770)
+;;     (((TYPE NUMBER) (TYPE FIXNUM))
+;;      (LET ((A #:A770) (B #:B771))
+;;        (DECLARE (TYPE FIXNUM A))
+;;        (DECLARE (TYPE NUMBER B))
+;;        (LIST A B 1)))
+;;     (((TYPE FIXNUM) (TYPE NUMBER))
+;;      (LET ((A #:A770) (B #:B771))
+;;        (DECLARE (TYPE NUMBER A))
+;;        (DECLARE (TYPE FIXNUM B))
+;;        (LIST A B 2)))))
