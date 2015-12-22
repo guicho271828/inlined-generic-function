@@ -188,3 +188,70 @@ In this example, the code for dispatching DOUBLE-FLOAT is removed.
 ;;          (LET ((A #:A1187))
 ;;            (DECLARE (TYPE T A))
 ;;            :AFTER))))))
+
+;;;; no-next-method equivalent
+
+(defgeneric testgf3 (a)
+  (:generic-function-class inlined-generic-function))
+(defmethod testgf3 (a) :primary)
+(defmethod testgf3 :around (a) :around (call-next-method))
+(defmethod testgf3 :before (a) :before (call-next-method))
+(defmethod testgf3 :after (a) :after)
+(defmethod testgf3 ((a fixnum)) :primary)
+(defmethod testgf3 :after ((a fixnum)) :after)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(testgf3 (1+ x)))))
+
+
+;;;; more checks with nonstandard method combinations
+
+(defgeneric glist (a)
+  (:method-combination list)
+  (:generic-function-class inlined-generic-function))
+(defmethod glist list (a) t)
+(defmethod glist list ((a fixnum)) :fixnum)
+(defmethod glist list ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(glist x))))
+
+(defgeneric gprogn (a)
+  (:method-combination progn)
+  (:generic-function-class inlined-generic-function))
+(defmethod gprogn progn (a) t)
+(defmethod gprogn progn ((a fixnum)) :fixnum)
+(defmethod gprogn progn ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(gprogn x))))
+
+(defgeneric g+ (a)
+  (:method-combination +)
+  (:generic-function-class inlined-generic-function))
+(defmethod g+ + (a) t)
+(defmethod g+ + ((a fixnum)) :fixnum)
+(defmethod g+ + ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(g+ x))))
+
+(defgeneric gmax (a)
+  (:method-combination max)
+  (:generic-function-class inlined-generic-function))
+(defmethod gmax max (a) t)
+(defmethod gmax max ((a fixnum)) :fixnum)
+(defmethod gmax max ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(gmax x))))
+
+(defgeneric gand (a)
+  (:method-combination and)
+  (:generic-function-class inlined-generic-function))
+(defmethod gand and (a) t)
+(defmethod gand and ((a fixnum)) :fixnum)
+(defmethod gand and ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(gand x))))

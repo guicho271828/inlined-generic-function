@@ -36,11 +36,11 @@
          (ematch* (fdef binding local inline)
            (((not (type inlined-generic-function)))
             (s-s-w? "Failed to inline ~a: ~a is a ~a, not ~a." whole name type 'inlined-generic-function))
-           (((inlined-generic-function
-              :method-combination
-              ;; this is a standard method combination
-              (and mc (not (eq (generic-function-method-combination #'dummy))))))
-            (s-s-w? "Failed to inline ~a: ~a has ~a, not ~a." whole name (type-of mc) (type-of (generic-function-method-combination #'dummy))))
+           ;; (((inlined-generic-function
+           ;;    :method-combination
+           ;;    ;; this is a standard method combination
+           ;;    (and mc (not (eq (generic-function-method-combination #'dummy))))))
+           ;;  (s-s-w? "Failed to inline ~a: ~a has ~a, not ~a." whole name (type-of mc) (type-of (generic-function-method-combination #'dummy))))
            (((generic-function :lambda-list (guard lambda-list (intersection lambda-list lambda-list-keywords))))
             (s-s-w? "Failed to inline ~a: Generic function contains lambda-list-keywords." whole))
            ((_ (not :function))
@@ -61,49 +61,51 @@
          (s-s-w? "Failed to inline ~a: The form does not match any of our expected cases." whole)))
       whole)))
 
+(defvar *current-gf*)
 (defun compile-generic-function (gf args env whole)
   (declare (ignorable gf args env whole))
-  (restart-case
-    (ematch gf
-      ((generic-function name
-                         method-combination
-                         lambda-list
-                         argument-precedence-order)
-       (format t "~&Inlining a generic function ~a~&" name)
-       (let ((gensyms (mapcar (lambda (sym) (gensym (symbol-name sym))) lambda-list)))
-         `(let ,(mapcar #'list gensyms args)
-            (ematch* ,(reorder-to-precedence lambda-list argument-precedence-order gensyms)
-              ,@(mapcar (lambda (m)
-                          (ematch m
-                            ((method specializers)
-                             `(,(mapcar (lambda (c) `(type ,(class-name c)))
-                                        (reorder-to-precedence lambda-list argument-precedence-order specializers))
-                                ,(improve-readability
-                                  (#+sbcl
-                                   sb-cltl2:macroexpand-all
-                                   ;; the use of macroexpand-all is only for
-                                   ;; the debugging purpose. the final
-                                   ;; compilation results should be the same
-                                   ;; for all implementations.
-                                   #-sbcl
-                                   progn
-                                   (inline-discriminating-function
-                                    whole
-                                    gensyms
-                                    (compute-effective-method
-                                     gf method-combination
-                                     ;; collect all methods of the same specifiers
-                                     (compute-applicable-methods-using-classes
-                                      gf (method-specializers m)))
-                                    specializers)))))))
-                        (sort (or (primary-methods gf)
-                                  (error "Failed to inline ~a: ~A is missing the primary methods" whole name))
-                              (curry #'specializer<
-                                     lambda-list
-                                     argument-precedence-order))))))))
-    (continue ()
-      :report "Decline inlining"
-      whole)))
+  (let ((*current-gf* gf))
+    (restart-case
+        (ematch gf
+          ((generic-function name
+                             methods
+                             method-combination
+                             lambda-list
+                             argument-precedence-order)
+           (format t "~&Inlining a generic function ~a~&" name)
+           (let ((gensyms (mapcar (lambda (sym) (gensym (symbol-name sym))) lambda-list)))
+             `(let ,(mapcar #'list gensyms args)
+                (ematch* ,(reorder-to-precedence lambda-list argument-precedence-order gensyms)
+                  ,@(mapcar (lambda (m)
+                              (ematch m
+                                ((method specializers)
+                                 `(,(mapcar (lambda (c) `(type ,(class-name c)))
+                                            (reorder-to-precedence lambda-list argument-precedence-order specializers))
+                                    ,(improve-readability
+                                      (#+sbcl
+                                       sb-cltl2:macroexpand-all
+                                       ;; the use of macroexpand-all is only for
+                                       ;; the debugging purpose. the final
+                                       ;; compilation results should be the same
+                                       ;; for all implementations.
+                                       #-sbcl
+                                       progn
+                                       (inline-discriminating-function
+                                        whole
+                                        gensyms
+                                        (compute-effective-method
+                                         gf method-combination
+                                         ;; collect all methods of the same specifiers
+                                         (compute-applicable-methods-using-classes
+                                          gf (method-specializers m)))
+                                        specializers)))))))
+                            (sort methods
+                                  (curry #'specializer<
+                                         lambda-list
+                                         argument-precedence-order))))))))
+      (continue ()
+        :report "Decline inlining"
+        whole))))
 
 (defun primary-methods (gf)
   (ematch gf
@@ -145,11 +147,12 @@
     ((inlined-method :lambda-expression
                      (list* 'lambda l-args body))
      `(macrolet (;; since everything is supposed to work in compile-time,
-                 ;; it can be a macrolet.
+                 ;; call-next-method and next-method-p can be a macrolet.
                  (call-next-method (&rest args)
                    (match ',more-methods
                      ((list* next rest)
-                      (let ((*current-inline-form* ',*current-inline-form*))
+                      (let ((*current-inline-form* ',*current-inline-form*)
+                            (*current-gf* ',*current-gf*))
                         ;; FIXME: check this.
                         ;; CLHS  Local Function CALL-NEXT-METHOD
                         ;;  Neither argument defaulting, nor using setq,
@@ -159,11 +162,16 @@
                         (%call-method (if args args ',args) next rest ',specs)))
                      (nil
                       ;; This throws an compile-time error.
+                      (cerror "Continue with inserting NO-NEXT-METHOD"
+                              'simple-error
+                              :format-control "While inlining ~a: no next method after ~a (~{~s~^ ~})!"
+                              :format-arguments
+                              (list ',*current-inline-form*
+                                    ',(generic-function-name (method-generic-function method))
+                                    ',(mapcar #'class-name (method-specializers method))))
                       ;; fixme: call no-next-method
-                      (error "Failed to inline ~a: no next method after ~a (~{~s~^ ~})!"
-                             ',*current-inline-form*
-                             ',(generic-function-name (method-generic-function method))
-                             ',(method-specializers method)))))
+                      ;; call-next-method requires runtime args.
+                      `(no-next-method ,',*current-gf* ,',method ,@args))))
                  (next-method-p ()
                    ,(if more-methods t nil)))
         (let ,(mapcar #'list l-args args)
