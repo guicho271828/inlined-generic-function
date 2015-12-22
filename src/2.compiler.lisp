@@ -88,7 +88,12 @@
                                        ;; the debugging purpose. the final
                                        ;; compilation results should be the same
                                        ;; for all implementations.
-                                       #-sbcl
+                                       #+ccl
+                                       ccl:macroexpand-all
+                                       ;; umm CCL complains that it failed to dump a class object.
+                                       ;; make-load-form for method objects are missing.
+                                       ;; Expanding it first solves this.
+                                       #-(or sbcl ccl)
                                        progn
                                        (inline-discriminating-function
                                         whole
