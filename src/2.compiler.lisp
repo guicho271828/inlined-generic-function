@@ -140,7 +140,7 @@
 (defun %call-method (args method more-methods specs)
   (ematch method
     ((list 'make-method body)
-     `(macrolet ((call-method (method more-methods)
+     `(macrolet ((call-method (method &optional more-methods)
                    (let ((*current-inline-form* ',*current-inline-form*))
                      (%call-method ',args method more-methods ',specs))))
         ,body))
