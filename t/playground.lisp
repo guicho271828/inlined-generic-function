@@ -115,14 +115,14 @@ In this example, the code for dispatching DOUBLE-FLOAT is removed.
 
 ;;;;; check precedence order
 
-(defgeneric testgf-inlined (a b)
+(defgeneric testgf (a b)
   (:generic-function-class inlined-generic-function)
   (:argument-precedence-order b a))
-(defmethod testgf-inlined ((a fixnum) (b number)) (list a b 1))
-(defmethod testgf-inlined ((a number) (b fixnum)) (list a b 2))
+(defmethod testgf ((a fixnum) (b number)) (list a b 1))
+(defmethod testgf ((a number) (b fixnum)) (list a b 2))
 
 (let ((*features* (cons :inline-generic-function *features*)))
-  (print (inline-generic-function '(testgf-inlined (1+ x) (1- y)))))
+  (print (inline-generic-function '(testgf (1+ x) (1- y)))))
 
 ;; (LET ((#:A770 (1+ X)) (#:B771 (1- Y)))
 ;;   (EMATCH* (#:B771 #:A770)
@@ -136,3 +136,55 @@ In this example, the code for dispatching DOUBLE-FLOAT is removed.
 ;;        (DECLARE (TYPE NUMBER A))
 ;;        (DECLARE (TYPE FIXNUM B))
 ;;        (LIST A B 2)))))
+
+
+;;;; before and after methods.
+
+(defgeneric testgf2 (a)
+  (:generic-function-class inlined-generic-function))
+(defmethod testgf2 (a) :primary)
+(defmethod testgf2 :around (a) :around (call-next-method))
+(defmethod testgf2 :before (a) :before)
+(defmethod testgf2 :after (a) :after)
+(defmethod testgf2 ((a fixnum)) :primary)
+(defmethod testgf2 :after ((a fixnum)) :after)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(testgf2 (1+ x)))))
+
+;; (LET ((#:A1187 (1+ X)))
+;;   (EMATCH* (#:A1187)
+;;     (((TYPE FIXNUM))
+;;      (LET ((A #:A1187))
+;;        (DECLARE (TYPE FIXNUM A))
+;;        :AROUND
+;;        (MULTIPLE-VALUE-PROG1
+;;            (PROGN
+;;             (LET ((A #:A1187))
+;;               (DECLARE (TYPE FIXNUM A))
+;;               :BEFORE)
+;;             (LET ((A #:A1187))
+;;               (DECLARE (TYPE FIXNUM A))
+;;               :PRIMARY))
+;;          (PROGN
+;;           (LET ((A #:A1187))
+;;             (DECLARE (TYPE FIXNUM A))
+;;             :AFTER)
+;;           (LET ((A #:A1187))
+;;             (DECLARE (TYPE FIXNUM A))
+;;             :AFTER)))))
+;;     (((TYPE T))
+;;      (LET ((A #:A1187))
+;;        (DECLARE (TYPE T A))
+;;        :AROUND
+;;        (MULTIPLE-VALUE-PROG1
+;;            (PROGN
+;;             (LET ((A #:A1187))
+;;               (DECLARE (TYPE T A))
+;;               :BEFORE)
+;;             (LET ((A #:A1187))
+;;               (DECLARE (TYPE T A))
+;;               :PRIMARY))
+;;          (LET ((A #:A1187))
+;;            (DECLARE (TYPE T A))
+;;            :AFTER))))))
