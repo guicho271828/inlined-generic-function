@@ -31,6 +31,7 @@ matrix:
 
 install:
   - curl -L https://raw.githubusercontent.com/snmsts/roswell/release/scripts/install-for-ci.sh | sh
+  - git clone git@github.com:guicho271828/trivia.git ~/lisp/trivia
 
 cache:
   directories:

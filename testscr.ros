@@ -10,9 +10,8 @@ exec ros -Q -- $0 "$@"
   (declare (ignorable argv))
   (uiop:quit (if (handler-case
                      (progn
-                       (asdf:load-system :inlined-generic-function.test)
-                       (eval (read-from-string "(every #'fiveam::TEST-PASSED-P (5am:run! :inlined-generic-function))"))
-)
+                       (ql:quickload :inlined-generic-function.test)
+                       (eval (read-from-string "(every #'fiveam::TEST-PASSED-P (5am:run! :inlined-generic-function))")))
                    (serious-condition (c)
                      (describe c)
                      (uiop:quit 2)))

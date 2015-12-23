@@ -6,6 +6,7 @@ dependencies:
   pre:
     - curl -L https://raw.githubusercontent.com/snmsts/roswell/master/scripts/install-for-ci.sh | sh
     - ros install ccl-bin
+    - git clone git@github.com:guicho271828/trivia.git ~/lisp/trivia
   cache_directories:
     - ~/.roswell/
 
