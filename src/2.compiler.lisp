@@ -76,9 +76,13 @@
            (let ((gensyms (mapcar (lambda (sym) (gensym (symbol-name sym))) lambda-list)))
              `(let ,(mapcar #'list gensyms args)
                 (ematch* ,(reorder-to-precedence lambda-list argument-precedence-order gensyms)
-                  ,@(mapcar (lambda (m)
-                              (ematch m
-                                ((method specializers)
+                  ,@(iter (for m in (sort methods
+                                          (curry #'specializer<
+                                                 lambda-list
+                                                 argument-precedence-order)))
+                          (ematch m
+                            ((method specializers)
+                             (collect
                                  `(,(mapcar (lambda (c) `(type ,(class-name c)))
                                             (reorder-to-precedence lambda-list argument-precedence-order specializers))
                                     ,(improve-readability
@@ -98,16 +102,21 @@
                                        (inline-discriminating-function
                                         whole
                                         gensyms
-                                        (compute-effective-method
-                                         gf method-combination
-                                         ;; collect all methods of the same specifiers
-                                         (compute-applicable-methods-using-classes
-                                          gf (method-specializers m)))
-                                        specializers)))))))
-                            (sort methods
-                                  (curry #'specializer<
-                                         lambda-list
-                                         argument-precedence-order))))))))
+                                        (handler-case
+                                            (compute-effective-method
+                                             gf method-combination
+                                             ;; collect all methods of the same specifiers
+                                             (compute-applicable-methods-using-classes
+                                              gf (method-specializers m)))
+                                          #+ccl
+                                          (error ()
+                                            ;; closer-mop on ccl may throw
+                                            ;; error when the given set of
+                                            ;; methods do not have the
+                                            ;; primary methods. This is not
+                                            ;; specified in AMOP.
+                                            (simple-style-warning "Skipping ~a (ccl specific)" m)))
+                                        specializers)))))))))))))
       (continue ()
         :report "Decline inlining"
         whole))))
