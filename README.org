@@ -77,7 +77,7 @@ In order to inline the generic function, just declare it =inline= when you use i
 ; .....
 #+END_SRC
 
-To see the actual compiler-macro expansion, use =inline-generic-function=.
+To see the actual compiler-macro expansion, use a function =inline-generic-function=.
 
 #+BEGIN_SRC lisp
 (let ((*features* (cons :inline-generic-function *features*)))
@@ -107,19 +107,17 @@ To see the actual compiler-macro expansion, use =inline-generic-function=.
          (+ A B))))))
 #+END_SRC
 
-# Since =ematch= from Trivia pattern matcher expands into thoroughly typed
-# dispatching code, a sufficiently smart compiler would compile =+= into
-# machine assembly, which is the case at least in SBCL.
+Since =ematch= from Trivia pattern matcher expands into thoroughly typed
+dispatching code, a sufficiently smart compiler would compile =+= into
+machine assembly, which is the case at least in SBCL.
 
-Note that this expansion does not contain the dispatch for =(NUMBER
-NUMBER)= because it does not have the primary function and therefore
-signals an error if the GF were the ordinary generic function. This behavior is instead
-covered by the error signalled by =EMATCH=.
+** Automatic compile-time dispatching
 
-Moreover, thanks to the nature of inlining, smart compilers like sbcl can
+If the code is inlined in a typed environment, smart compilers like sbcl can
 detect certain branches are not reachable, thus removing the checks and
-reducing the code size.  In the example below, the code for dispatching
-DOUBLE-FLOAT is removed.
+reducing the code size. This is equivalent to compile-time dispatch.
+In the example below, the code for dispatching
+FLOAT is removed.
 
 #+BEGIN_SRC lisp
 (defun func-using-inlined-plus-and-type-added (a b)
@@ -143,25 +141,25 @@ DOUBLE-FLOAT is removed.
   (plus a b))
 #+END_SRC
 
-Next, marking the usage =inline= is not so useful when you inline *all*
-generic functions (with metaclass =inlined-generic-function=) in order to
-build a highly optimized executable binary, because it would be painful to
-search around the use of all generic functions and add an inline
-declaration one by one. Also, during the development you generally do not
-want to make them inlined, since the inlined code becomes obsoleted when the
-generic function changes.
+If the types does not match, errors are signalled by =EMATCH=, 
+which is consistent with the behavior of standard generic functions.
 
-Therefore, the compiler macro recognizes =:inline-generic-function= flag in
-=*features*=. When this feature is present, all inlinable generic functions
-are inlined unless it is declared =notinline=. When declared =notinline=,
-the compiler macro declines and the code returns to the normal behavior.
+** Enabling Inlining Globally
+
+Inlining is not globally enabled by default.
+This is because the inlined code becomes obsoleted when the
+generic function definition changes, and therefore
+you generally do not want to make them inlined during the development.
+
+It can be enabled globally 
+by adding =:inline-generic-function= flag in
+=*features*=, which is useful when you build a standalone binary.
+When this feature is present, all inlinable generic functions
+are inlined unless it is declared =notinline=.
 
 #+BEGIN_SRC lisp
 (push :inline-generic-function *features*)
 #+END_SRC
-
-Currently it supports the standard method combination with =:around= methods
-and the primary methods only.  Extensions are future work.
 
 ** Benchmark Setting
 
