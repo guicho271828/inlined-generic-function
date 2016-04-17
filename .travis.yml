@@ -38,4 +38,4 @@ cache:
     - $HOME/.config/common-lisp
 
 script:
-  - ./testscr.ros
+  - ros ./testscr.ros
