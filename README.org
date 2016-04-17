@@ -249,7 +249,7 @@ This library is at least tested on implementation listed below:
 
 Also, it depends on the following libraries:
 
-+ trivia by Masataro Asai :: (*requires the latest version in https://github.com/guicho271828/trivia/*)
++ trivia by Masataro Asai ::
     NON-optimized pattern matcher compatible with OPTIMA, with extensible optimizer interface and clean codebase
 
 + closer-mop by Pascal Costanza ::
