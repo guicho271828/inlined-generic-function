@@ -10,8 +10,8 @@ We propose a MOP-based implementation of fast inlined generic functions
 dispatched in compile-time. The amount of work required to inline your
 generic function is minimal. 
 
-Empirical analysis showed that the resulting code is up to *10 times*
-faster than the normal generic function invocation.
+Empirical analysis showed that *the resulting code is up to 10 times
+faster than the standard generic functions.*
 
 ** Usage
 
