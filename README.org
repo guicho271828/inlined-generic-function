@@ -13,6 +13,8 @@ generic function is minimal.
 Empirical analysis showed that *the resulting code is up to 10 times
 faster than the standard generic functions.*
 
+Tested on SBCL and CCL.
+
 ** Usage
 
 The example code here is in =t/playground.lisp=.
