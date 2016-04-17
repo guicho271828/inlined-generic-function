@@ -8,12 +8,10 @@ generic functions should be statically compiled away.
 
 We propose a MOP-based implementation of fast inlined generic functions
 dispatched in compile-time. The amount of work required to inline your
-generic function is minimal. Although it currently supports only +=:around=
-and primary methods of+ the standard method combination defined in ANSI CL,
-empirical analysis showed that the resulting code is up to *10 times*
-faster than the normal generic function invocation.
+generic function is minimal. 
 
-Edit (2016/12/22) : surprisingly, it actually *WORKS* with :before and :after method
+Empirical analysis showed that the resulting code is up to *10 times*
+faster than the normal generic function invocation.
 
 ** Usage
 
