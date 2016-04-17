@@ -1,5 +1,5 @@
 
-* Inlined-Generic-Function
+* Bringing the speed of Static Dispatch to CLOS --- Inlined-Generic-Function https://circleci.com/gh/guicho271828/inlined-generic-function.svg?style=svg https://travis-ci.org/guicho271828/inlined-generic-function.svg?branch=master
 
 Generic functions are convenient but slow.  During the development we
 usually want the full dynamic feature of CLOS. However, when we really need
