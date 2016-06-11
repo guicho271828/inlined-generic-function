@@ -98,7 +98,11 @@
 
 (defun %matcher-pattern (lambda-list argument-precedence-order specializers)
   (mapcar (lambda (c)
-            `(type ,(class-name c)))
+            (ematch c
+              ((class class)
+               `(type ,(class-name c)))
+              ((class eql-specializer)
+               `(eql ',(eql-specializer-object c)))))
           (reorder-to-precedence lambda-list
                                  argument-precedence-order
                                  specializers)))
