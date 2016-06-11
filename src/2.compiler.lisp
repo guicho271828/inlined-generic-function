@@ -66,60 +66,70 @@
   (declare (ignorable gf args env whole))
   (let ((*current-gf* gf))
     (restart-case
-        (ematch gf
-          ((generic-function name
-                             methods
-                             method-combination
-                             lambda-list
-                             argument-precedence-order)
-           (format t "~&Inlining a generic function ~a~&" name)
-           (let ((gensyms (mapcar (lambda (sym) (gensym (symbol-name sym))) lambda-list)))
-             `(let ,(mapcar #'list gensyms args)
-                (ematch* ,(reorder-to-precedence lambda-list argument-precedence-order gensyms)
-                  ,@(iter (for m in (sort methods
-                                          (curry #'specializer<
-                                                 lambda-list
-                                                 argument-precedence-order)))
-                          (ematch m
-                            ((method specializers)
-                             (collect
-                                 `(,(mapcar (lambda (c) `(type ,(class-name c)))
-                                            (reorder-to-precedence lambda-list argument-precedence-order specializers))
-                                    ,(improve-readability
-                                      (#+sbcl
-                                       sb-cltl2:macroexpand-all
-                                       ;; the use of macroexpand-all is only for
-                                       ;; the debugging purpose. the final
-                                       ;; compilation results should be the same
-                                       ;; for all implementations.
-                                       #+ccl
-                                       ccl:macroexpand-all
-                                       ;; umm CCL complains that it failed to dump a class object.
-                                       ;; make-load-form for method objects are missing.
-                                       ;; Expanding it first solves this.
-                                       #-(or sbcl ccl)
-                                       progn
-                                       (inline-discriminating-function
-                                        whole
-                                        gensyms
-                                        (handler-case
-                                            (compute-effective-method
-                                             gf method-combination
-                                             ;; collect all methods of the same specifiers
-                                             (compute-applicable-methods-using-classes
-                                              gf (method-specializers m)))
-                                          #+ccl
-                                          (error ()
-                                            ;; closer-mop on ccl may throw
-                                            ;; error when the given set of
-                                            ;; methods do not have the
-                                            ;; primary methods. This is not
-                                            ;; specified in AMOP.
-                                            (simple-style-warning "Skipping ~a (ccl specific)" m)))
-                                        specializers)))))))))))))
+        (%compile-generic-function gf args whole)
       (continue ()
         :report "Decline inlining"
         whole))))
+
+(defun %compile-generic-function (gf args whole)
+  (ematch gf
+    ((generic-function name
+                       methods
+                       method-combination
+                       lambda-list
+                       argument-precedence-order)
+     (format t "~&Inlining a generic function ~a~&" name)
+     (let ((gensyms (mapcar (compose #'gensym #'symbol-name) lambda-list)))
+       `(let ,(mapcar #'list gensyms args)
+          (ematch* ,(reorder-to-precedence lambda-list argument-precedence-order gensyms)
+            ,@(%matcher-clause gensyms gf method-combination whole argument-precedence-order lambda-list methods)))))))
+
+(defun %matcher-clause (gensyms gf method-combination whole argument-precedence-order lambda-list methods)
+  (iter (for m in (sort methods
+                        (curry #'specializer<
+                               lambda-list
+                               argument-precedence-order)))
+        (ematch m
+          ((method specializers)
+           (collect
+               `(,(%matcher-pattern lambda-list argument-precedence-order specializers)
+                  ,(improve-readability
+                    (%matcher-body gensyms gf m method-combination specializers whole))))))))
+
+(defun %matcher-pattern (lambda-list argument-precedence-order specializers)
+  (mapcar (lambda (c)
+            `(type ,(class-name c)))
+          (reorder-to-precedence lambda-list
+                                 argument-precedence-order
+                                 specializers)))
+
+(defun %matcher-body (gensyms gf m method-combination specializers whole)
+  (#+sbcl sb-cltl2:macroexpand-all
+   ;; the use of macroexpand-all is only for the debugging purpose.
+   ;; the final compilation results should be the same for all implementations.
+   #+ccl ccl:macroexpand-all
+   ;; umm CCL complains that it failed to dump a class object.
+   ;; make-load-form for method objects are missing.
+   ;; Expanding it first solves this.
+   #-(or sbcl ccl) progn
+   (inline-discriminating-function
+    whole
+    gensyms
+    (handler-case
+        (compute-effective-method
+         gf method-combination
+         ;; collect all methods of the same specifiers
+         (compute-applicable-methods-using-classes
+          gf (method-specializers m)))
+      #+ccl
+      (error ()
+        ;; closer-mop on ccl may throw
+        ;; error when the given set of
+        ;; methods do not have the
+        ;; primary methods. This is not
+        ;; specified in AMOP.
+        (simple-style-warning "Skipping ~a (ccl specific)" m)))
+    specializers)))
 
 (defun primary-methods (gf)
   (ematch gf
