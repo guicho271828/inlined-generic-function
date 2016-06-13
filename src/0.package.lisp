@@ -19,7 +19,6 @@
   (:export
    #:inlined-method
    #:method-lambda-expression
-   #:primary-methods
    #:inline-generic-function
    #:method-lambda-expression*))
 

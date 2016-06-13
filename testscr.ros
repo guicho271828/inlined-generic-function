@@ -9,7 +9,11 @@ exec ros -Q -- $0 "$@"
   (uiop:quit (if (handler-case
                      (progn
                        (ql:quickload :inlined-generic-function.test)
-                       (eval (read-from-string "(every #'fiveam::TEST-PASSED-P (5am:run! :inlined-generic-function))")))
+(eval
+ (read-from-string
+  "(let ((res (5am:run :inlined-generic-function)))
+     (5am:explain! res)
+     (every #'fiveam::TEST-PASSED-P res))")))
                    (serious-condition (c)
                      (describe c)
                      (uiop:quit 2)))
