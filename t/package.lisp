@@ -153,8 +153,11 @@
 (defmethod minus ((a float) (b float))
   (- a b))
 
+(defmethod minus ((a (eql :two)) (b (eql :one)))
+  :one)
+
 (test compiler
-  (is (= 3 (length (primary-methods #'minus))))
+  (is (= 4 (length (primary-methods #'minus))))
   (finishes
    (print (inline-generic-function '(minus 1 2) nil))))
 
