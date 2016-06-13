@@ -122,9 +122,10 @@
     (handler-case
         (compute-effective-method
          gf method-combination
-         ;; collect all methods of the same specifiers
-         (compute-applicable-methods-using-classes
-          gf (method-specializers m)))
+         ;; collect all methods of the same specifiers.
+         ;; We cannot use compute-applicable-methods-using-classes
+         ;; because it may contain eql-specializers.
+         (%compute-applicable-methods gf (method-specializers m)))
       #+ccl
       (error ()
         ;; closer-mop on ccl may throw
@@ -134,6 +135,27 @@
         ;; specified in AMOP.
         (simple-style-warning "Skipping ~a (ccl specific)" m)))
     specializers)))
+
+(defun %compute-applicable-methods (gf specializers)
+  ;; able to handle eql-specializer gracefully
+  (ematch gf
+    ((generic-function :methods methods
+                       lambda-list
+                       argument-precedence-order)
+     (sort (iter (for m in methods)
+                 (when (iter (for spec1 in specializers)
+                             (for spec2 in (method-specializers m))
+                             (always
+                              (match* (spec1 spec2)
+                                (((eql-specializer :object o1)
+                                  (eql-specializer :object o2))
+                                 (eql o1 o2))
+                                (((class class)
+                                  (class class))
+                                 (subtypep spec1 spec2))
+                                (_ nil))))
+                   (collect m)))
+           (curry #'specializer< lambda-list argument-precedence-order)))))
 
 (defun primary-methods (gf)
   (ematch gf
