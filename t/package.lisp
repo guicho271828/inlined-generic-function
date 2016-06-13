@@ -228,30 +228,38 @@
      ,@(iter outer
              (for comb in '(list progn + max min and or))
              (for inline = (symbolicate 'inline comb))
+             (appending
+              `((defgeneric ,inline (a)
+                  (:method-combination ,comb)
+                  (:generic-function-class inlined-generic-function))
+                (defmethod ,inline ,comb (a)          (declare (ignorable a)) 1)
+                (defmethod ,inline ,comb ((a fixnum)) (declare (ignorable a)) 2)
+                (defmethod ,inline ,comb ((a float))  (declare (ignorable a)) 3)))
              (for std = (symbolicate 'std comb))
-             (iter (for name in (list inline std))
-                   (in outer
-                       (appending
-                        `((defgeneric ,name (a)
-                            (:method-combination ,comb)
-                            (:generic-function-class inlined-generic-function))
-                          (defmethod ,name ,comb (a) 1)
-                          (defmethod ,name ,comb ((a fixnum)) 2)
-                          (defmethod ,name ,comb ((a float)) 3)))))
+             (appending
+              `((defgeneric ,std (a)
+                  (:method-combination ,comb))
+                (defmethod ,std ,comb (a)          (declare (ignorable a)) 1)
+                (defmethod ,std ,comb ((a fixnum)) (declare (ignorable a)) 2)
+                (defmethod ,std ,comb ((a float))  (declare (ignorable a)) 3)))
              (for func = (symbolicate 'func comb))
              (collecting
               `(defun ,func (a)
+                 (declare (inline ,inline))
                  (,inline a)))
              (collecting
               `(test ,comb
-                     (is (equal (,func "aaa")
-                                (,std "aaa")))
-                     (is (equal (,func :keyword)
-                                (,std :keyword)))
-                     (is (equal (,func 0)
-                                (,std 0)))
-                     (is (equal (,func 0.0)
-                                (,std 0.0))))))))
+                 #+nil
+                 (let ((*features* (cons :inline-generic-function *features*)))
+                   (print (inline-generic-function '(,inline x))))
+                 (is (equal (,func "aaa")
+                            (,std "aaa")))
+                 (is (equal (,func :keyword)
+                            (,std :keyword)))
+                 (is (equal (,func 0)
+                            (,std 0)))
+                 (is (equal (,func 0.0)
+                            (,std 0.0))))))))
 
 (many)
 
