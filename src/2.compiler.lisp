@@ -226,17 +226,19 @@
                               :format-arguments
                               (list ',*current-inline-form*
                                     ',(generic-function-name (method-generic-function method))
-                                    ',(mapcar #'class-name (method-specializers method))))
+                                    ',(method-specializers method)))
                       ;; fixme: call no-next-method
                       ;; call-next-method requires runtime args.
                       `(no-next-method ,',*current-gf* ,',method ,@args))))
                  (next-method-p ()
                    ,(if more-methods t nil)))
         (let ,(mapcar #'list l-args args)
-          ,@(mapcar (lambda (spec arg)
-                      `(declare (type ,(class-name spec) ,arg)))
-                    specs
-                    l-args)
+          ,@(remove nil
+                    (mapcar (lambda (spec arg)
+                              (when (classp spec)
+                                `(declare (type ,(class-name spec) ,arg))))
+                            specs
+                            l-args))
           ,@body)))))
 
 (defun improve-readability (form)
