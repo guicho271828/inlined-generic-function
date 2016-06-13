@@ -171,8 +171,15 @@
 (defun specializer< (lambda-list precedence-order m1 m2)
   "return true if some specializer of m1, checked in an precedence order, is a subtype of the specializer of m2"
   (some (lambda (a b)
-          (and (subtypep a b)
-               (not (subtypep b a))))
+          (match* (a b)
+            (((eql-specializer) (eql-specializer))
+             nil)
+            (((eql-specializer :object o1) class)
+             (typep o1 class))
+            ((_ (eql-specializer)) nil)
+            ((_ _)
+             (and (subtypep a b)
+                  (not (subtypep b a))))))
         (reorder-to-precedence lambda-list precedence-order (method-specializers m1))
         (reorder-to-precedence lambda-list precedence-order (method-specializers m2))))
 
