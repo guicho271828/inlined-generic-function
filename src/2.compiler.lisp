@@ -89,8 +89,8 @@
                         (curry #'specializer<
                                lambda-list
                                argument-precedence-order)))
-        (ematch m
-          ((method specializers)
+        (match m
+          ((method specializers (qualifiers (not (or :around :before :after))))
            (collect
                `(,(%matcher-pattern lambda-list argument-precedence-order specializers)
                   ,(improve-readability
@@ -157,6 +157,7 @@
                    (collect m)))
            (curry #'specializer< lambda-list argument-precedence-order)))))
 
+#+nil
 (defun primary-methods (gf)
   (ematch gf
     ((generic-function methods)

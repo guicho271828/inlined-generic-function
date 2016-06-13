@@ -157,7 +157,6 @@
   :one)
 
 (test compiler
-  (is (= 4 (length (primary-methods #'minus))))
   (finishes
    (print (inline-generic-function '(minus 1 2) nil))))
 
