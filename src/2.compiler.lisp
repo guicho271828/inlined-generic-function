@@ -85,7 +85,7 @@
             ,@(%matcher-clause gensyms gf method-combination whole argument-precedence-order lambda-list methods)))))))
 
 (defun %matcher-clause (gensyms gf method-combination whole argument-precedence-order lambda-list methods)
-  (iter (for m in (sort methods
+  (iter (for m in (sort (copy-seq methods)
                         (curry #'specializer<
                                lambda-list
                                argument-precedence-order)))
