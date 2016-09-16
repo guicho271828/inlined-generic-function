@@ -121,7 +121,7 @@
     whole
     gensyms
     (handler-case
-        (compute-effective-method
+        (compute-effective-method ; <<---- now note that this may return '(SB-PCL::%NO-PRIMARY-METHOD '#<INLINED-GENERIC-FUNCTION> SB-PCL::.ARGS.)
          gf method-combination
          ;; collect all methods of the same specifiers.
          ;; We cannot use compute-applicable-methods-using-classes
