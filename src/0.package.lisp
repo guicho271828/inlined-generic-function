@@ -9,16 +9,14 @@
   (:nicknames :inlined-gf)
   (:export
    #:inlined-generic-function
-   #:freeze-inlined-generic-function))
+   #:inline-generic-function
+   #:inlined-method
+   #:method-lambda-expression
+   #:method-lambda-expression*))
 
 (defpackage inlined-generic-function.impl
   (:use :closer-common-lisp :trivia :alexandria :iterate
         :introspect-environment
         #+nil :SANDALPHON.COMPILER-MACRO
-        :inlined-generic-function)
-  (:export
-   #:inlined-method
-   #:method-lambda-expression
-   #:inline-generic-function
-   #:method-lambda-expression*))
+        :inlined-generic-function))
 
