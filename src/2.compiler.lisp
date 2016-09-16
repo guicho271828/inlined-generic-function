@@ -23,38 +23,39 @@
                       (function-information name env))
                      (or (list binding ;The first indicates the type of function definition or binding
                                local   ;The second value is true if NAME is bound locally.
-                               (assoc 'inline inline))
+                               declinfo)
                          (and (list binding
                                     local)
-                              (<> inline nil))
+                              (<> declinfo nil))
                          (and (list binding)
                               (<> local nil)
-                              (<> inline nil))
+                              (<> declinfo nil))
                          (and (<> binding nil)
                               (<> local nil)
-                              (<> inline nil)))))
-         (ematch* (fdef binding local inline)
-           (((not (type inlined-generic-function)))
-            (s-s-w? "Failed to inline ~a: ~a is a ~a, not ~a." whole name type 'inlined-generic-function))
-           ;; (((inlined-generic-function
-           ;;    :method-combination
-           ;;    ;; this is a standard method combination
-           ;;    (and mc (not (eq (generic-function-method-combination #'dummy))))))
-           ;;  (s-s-w? "Failed to inline ~a: ~a has ~a, not ~a." whole name (type-of mc) (type-of (generic-function-method-combination #'dummy))))
-           (((generic-function :lambda-list (guard lambda-list (intersection lambda-list lambda-list-keywords))))
-            (s-s-w? "Failed to inline ~a: Generic function contains lambda-list-keywords." whole))
-           ((_ (not :function))
-            (s-s-w? "Failed to inline ~a: ~a is a ~a." whole name binding))
-           ((_ _ t)
-            (s-s-w? "Failed to inline ~a: ~a is locally shadowed." whole name))
-           ((_ _ _ 'notinline)
-            (s-s-w? "Failed to inline ~a: ~a is declared notinline." whole name))
-           (((type inlined-generic-function) :function nil)
-            (if (or (eq inline 'inline)
-                    (and forced (not (eq inline 'notinline))))
-                (return-from inline-generic-function
-                  (compile-generic-function fdef args env whole))
-                (s-s-w? "Inlining not performed: did not match the inlining criteria")))))
+                              (<> declinfo nil)))))
+         (let ((inline (assoc 'inline declinfo)))
+           (ematch* (fdef binding local inline)
+             (((not (type inlined-generic-function)))
+              (s-s-w? "Failed to inline ~a: ~a is a ~a, not ~a." whole name type 'inlined-generic-function))
+             ;; (((inlined-generic-function
+             ;;    :method-combination
+             ;;    ;; this is a standard method combination
+             ;;    (and mc (not (eq (generic-function-method-combination #'dummy))))))
+             ;;  (s-s-w? "Failed to inline ~a: ~a has ~a, not ~a." whole name (type-of mc) (type-of (generic-function-method-combination #'dummy))))
+             (((generic-function :lambda-list (guard lambda-list (intersection lambda-list lambda-list-keywords))))
+              (s-s-w? "Failed to inline ~a: Generic function contains lambda-list-keywords." whole))
+             ((_ (not :function))
+              (s-s-w? "Failed to inline ~a: ~a is a ~a." whole name binding))
+             ((_ _ t)
+              (s-s-w? "Failed to inline ~a: ~a is locally shadowed." whole name))
+             ((_ _ _ 'notinline)
+              (s-s-w? "Failed to inline ~a: ~a is declared notinline." whole name))
+             (((type inlined-generic-function) :function nil)
+              (if (or (eq inline 'inline)
+                      (and forced (not (eq inline 'notinline))))
+                  (return-from inline-generic-function
+                    (compile-generic-function fdef args env whole))
+                  (s-s-w? "Inlining not performed: did not match the inlining criteria"))))))
         ((call name _)
          (s-s-w? "Failed to inline ~a: ~a is not fbound" whole name))
         (_
