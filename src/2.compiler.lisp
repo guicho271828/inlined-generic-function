@@ -33,7 +33,7 @@
                          (and (<> binding nil)
                               (<> local nil)
                               (<> declinfo nil)))))
-         (let ((inline (assoc 'inline declinfo)))
+         (let ((inline (cdr (assoc 'inline declinfo))))
            (ematch* (fdef binding local inline)
              (((not (type inlined-generic-function)))
               (s-s-w? "Failed to inline ~a: ~a is a ~a, not ~a." whole name type 'inlined-generic-function))
