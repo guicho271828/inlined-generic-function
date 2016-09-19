@@ -17,9 +17,7 @@ For example, using =invalid-branch= in a default method of inlined-generic-funct
 
 Supported implementations: [[https://travis-ci.org/guicho271828/inlined-generic-function][You can check these test results on Travis-CI.]]
 
-SBCL:
-This feature is tested against all most recent patch versions in the past three minor versions.
-That is, 1.3.9, 1.2.16, 1.1.18.
++ SBCL :: This feature is tested against all most recent patch versions in the past three minor versions. That is, 1.3.9, 1.2.16, 1.1.18.
 
 *Special Variable* =*invalid-branch-warning-level*= 
 
