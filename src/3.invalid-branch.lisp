@@ -35,7 +35,14 @@ When it happens, you should fix the code, add a type restriction etc.
 in order to make it compile.
 
 On unsupported implementations, this function has no compile-time effect
-and just signals an error."
+and just signals an error.
+
+Supported implementations:
+
+SBCL:
+This feature is tested against all patch versions in the latest minor version,
+as well as the most recent patches in the past two minor versions.
+"
   (error "Failed to prune an INVALID-BRANCH.
 The call to INVALID-BRANCH should be dead-code eliminated by the compiler.
 ~@[~a~]" message))
