@@ -1,9 +1,9 @@
 
 (in-package :inlined-generic-function.impl)
 
-(declaim (type (member style-warning warning error) *invalid-branch-warning-level*))
+(declaim (type (member simple-style-warning warn error) *invalid-branch-warning-level*))
 
-(defparameter *invalid-branch-warning-level* 'warning
+(defparameter *invalid-branch-warning-level* 'warn
   "A flag controlling the level of compile-time warning signaled when
 compiling a call to INVALID-BRANCH.
 This does not affect the behavior of INVALID-BRANCH, which always signals an error.")
