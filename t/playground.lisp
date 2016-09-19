@@ -13,98 +13,245 @@
         :trivia :alexandria :iterate))
 (in-package :inlined-generic-function.playground)
 
-(setf *features* (cons :inline-generic-function *features*))
-
 (defgeneric plus (a b)
   (:generic-function-class inlined-generic-function))
 
-;; there is only one method
+(defmethod plus :around ((a number) (b number))
+  (+ a b)
+  (call-next-method))
+
 (defmethod plus ((a fixnum) (b fixnum))
   (+ a b))
+(defmethod plus ((a double-float) (b double-float))
+  (+ a b))
 
-(introspect-environment:compiler-macroexpand '(plus a b))
+(defun func-using-plus (a b)
+  "; Size: 24 bytes. Origin: #x100914B7A5"
+  (declare (optimize (speed 3) (safety 0)))
+  (plus a b))
 
-'(LET ((#:A738 A) (#:B739 B))
-  (EMATCH* (#:A738 #:B739)
-    (((TYPE FIXNUM) (TYPE FIXNUM))
-     (LET ((A #:A738) (B #:B739))
-       (DECLARE (TYPE FIXNUM A))
-       (DECLARE (TYPE FIXNUM B))
-       (+ A B)))))
-
-(defun maybe-compile-time-error ()
-  (error "I signal an error in runtime"))
-
-(defmethod plus (a b)
-  (maybe-compile-time-error))
-
-(introspect-environment:compiler-macroexpand '(plus a b))
-
-'(LET ((#:A738 A) (#:B739 B))
-  (EMATCH* (#:A738 #:B739)
-    (((TYPE FIXNUM) (TYPE FIXNUM))
-     (LET ((A #:A738) (B #:B739))
-       (DECLARE (TYPE FIXNUM A))
-       (DECLARE (TYPE FIXNUM B))
-       (+ A B)))
-    (((TYPE T) (TYPE T))
-     (LET ((A #:A738) (B #:B739))
-       (DECLARE (TYPE T A))
-       (DECLARE (TYPE T B))
-       (MAYBE-COMPILE-TIME-ERROR)))))
-
-
-(defun compilation-fails (a b)
+(defun func-using-inlined-plus (a b)
+  "; Size: 323 bytes. Origin: #x1009614DA5"
   (declare (inline plus))
   (declare (optimize (speed 3) (safety 0)))
-  (declare (type fixnum a b))
-  (macrolet ((maybe-compile-time-error ()
-               (error "I signal an error in compile time")))
-    ;; Since all method forms are inlined,
-    ;; maybe-compile-time-error still presents
-    ;; regardless of the argument types.
-    ;;
-    ;; In other words, Compilation always fails
-    ;; even if the arguments are guaranteed to be fixnums
-    (plus a b)))
+  (plus a b))
 
+(defun func-using-inlined-plus-and-type-added (a b)
+  "Thanks to the nature of inlining,
+smart compilers like sbcl can detect certain branches are not reachable,
+thus removing the checks and reducing the code size.
 
-;; So what we can do?
+In this example, the code for dispatching DOUBLE-FLOAT is removed.
 
-;; lets hack in the SBCL internal --- we can give some information to
-;; SBCL's IR.
-
-;; now we want a form that signals a compile-time error only when it is reachable.
-
-(sb-c:defknown ir1-compile-time-error () () (sb-c:always-translatable))
-(sb-c:deftransform ir1-compile-time-error (())
-  (restart-case
-      (error "I signal an error in IR1 compile time")
-    (continue ()
-      (format *error-output* "~3%!!!!!!!! CONTINUED !!!!!!!!!~3%"))))
-
-(handler-bind ((error #'continue))
-  (eval 
-   '(defmethod plus (a b)
-     (ir1-compile-time-error))))
-
-(defun compilation-ok (a b)
+; disassembly for FUNC-USING-INLINED-PLUS-AND-TYPE-ADDED
+; Size: 29 bytes. Origin: #x10031E7788
+; 88:       4801F9           ADD RCX, RDI                     ; no-arg-parsing entry point
+; 8B:       488BD1           MOV RDX, RCX
+; 8E:       48D1E2           SHL RDX, 1
+; 91:       710C             JNO L0
+; 93:       488BD1           MOV RDX, RCX
+; 96:       41BB70060020     MOV R11D, 536872560              ; ALLOC-SIGNED-BIGNUM-IN-RDX
+; 9C:       41FFD3           CALL R11
+; 9F: L0:   488BE5           MOV RSP, RBP
+; A2:       F8               CLC
+; A3:       5D               POP RBP
+; A4:       C3               RET
+"
   (declare (inline plus))
   (declare (optimize (speed 3) (safety 0)))
   (declare (type fixnum a b))
   (plus a b))
 
-(defun compilation-fails (a b)
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(plus (1+ a) (1- b)))))
+
+;; benchmark
+
+(defgeneric normal-plus (a b))
+
+(defmethod normal-plus :around ((a number) (b number))
+  (+ a b)
+  (call-next-method))
+
+(defmethod normal-plus ((a fixnum) (b fixnum))
+  (+ a b))
+(defmethod normal-plus ((a double-float) (b double-float))
+  (+ a b))
+
+(defun func-using-normal-plus (a b)
+  (declare (optimize (speed 3) (safety 0)))
+  (normal-plus a b))
+
+(defun func-using-normal-inlined-plus (a b)
   (declare (inline plus))
   (declare (optimize (speed 3) (safety 0)))
-  (declare (type float a b))
-  (plus a b))
+  (normal-plus a b))
 
-SB-C:DEFINE-VOP
-deftransform
-define-source-transform
-defknown
-defoptimizer
+(defvar *input* (iter (repeat 1000)
+                      (collect (cons (random 100.0d0) (random 100.0d0)))
+                      (collect (cons (+ 20 (random 100)) (+ 20 (random 100))))))
 
-(sb-c:defknown (+ *) (&rest number) number
-    (movable foldable flushable commutative))
+(defun benchmark ()
+  (time (iter (for (a . b) in *input*)
+              (func-using-normal-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-normal-inlined-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-plus a b)))
+  (time (iter (for (a . b) in *input*)
+              (func-using-inlined-plus a b))))
+
+(let ((*standard-output* (make-broadcast-stream))
+      (*error-output* (make-broadcast-stream))
+      (*trace-output* (make-broadcast-stream)))
+  (iter (repeat 1000)
+        (benchmark)))
+(sb-ext:gc :full t)
+
+(benchmark)
+
+
+
+
+;;;;; check precedence order
+
+(defgeneric testgf (a b)
+  (:generic-function-class inlined-generic-function)
+  (:argument-precedence-order b a))
+(defmethod testgf ((a fixnum) (b number)) (list a b 1))
+(defmethod testgf ((a number) (b fixnum)) (list a b 2))
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(testgf (1+ x) (1- y)))))
+
+;; (LET ((#:A770 (1+ X)) (#:B771 (1- Y)))
+;;   (EMATCH* (#:B771 #:A770)
+;;     (((TYPE NUMBER) (TYPE FIXNUM))
+;;      (LET ((A #:A770) (B #:B771))
+;;        (DECLARE (TYPE FIXNUM A))
+;;        (DECLARE (TYPE NUMBER B))
+;;        (LIST A B 1)))
+;;     (((TYPE FIXNUM) (TYPE NUMBER))
+;;      (LET ((A #:A770) (B #:B771))
+;;        (DECLARE (TYPE NUMBER A))
+;;        (DECLARE (TYPE FIXNUM B))
+;;        (LIST A B 2)))))
+
+
+;;;; before and after methods.
+
+(defgeneric testgf2 (a)
+  (:generic-function-class inlined-generic-function))
+(defmethod testgf2 (a) :primary)
+(defmethod testgf2 :around (a) :around (call-next-method))
+(defmethod testgf2 :before (a) :before)
+(defmethod testgf2 :after (a) :after)
+(defmethod testgf2 ((a fixnum)) :primary)
+(defmethod testgf2 :after ((a fixnum)) :after)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(testgf2 (1+ x)))))
+
+;; (LET ((#:A1187 (1+ X)))
+;;   (EMATCH* (#:A1187)
+;;     (((TYPE FIXNUM))
+;;      (LET ((A #:A1187))
+;;        (DECLARE (TYPE FIXNUM A))
+;;        :AROUND
+;;        (MULTIPLE-VALUE-PROG1
+;;            (PROGN
+;;             (LET ((A #:A1187))
+;;               (DECLARE (TYPE FIXNUM A))
+;;               :BEFORE)
+;;             (LET ((A #:A1187))
+;;               (DECLARE (TYPE FIXNUM A))
+;;               :PRIMARY))
+;;          (PROGN
+;;           (LET ((A #:A1187))
+;;             (DECLARE (TYPE FIXNUM A))
+;;             :AFTER)
+;;           (LET ((A #:A1187))
+;;             (DECLARE (TYPE FIXNUM A))
+;;             :AFTER)))))
+;;     (((TYPE T))
+;;      (LET ((A #:A1187))
+;;        (DECLARE (TYPE T A))
+;;        :AROUND
+;;        (MULTIPLE-VALUE-PROG1
+;;            (PROGN
+;;             (LET ((A #:A1187))
+;;               (DECLARE (TYPE T A))
+;;               :BEFORE)
+;;             (LET ((A #:A1187))
+;;               (DECLARE (TYPE T A))
+;;               :PRIMARY))
+;;          (LET ((A #:A1187))
+;;            (DECLARE (TYPE T A))
+;;            :AFTER))))))
+
+;;;; no-next-method equivalent
+
+(defgeneric testgf3 (a)
+  (:generic-function-class inlined-generic-function))
+(defmethod testgf3 (a) :primary)
+(defmethod testgf3 :around (a) :around (call-next-method))
+(defmethod testgf3 :before (a) :before (call-next-method))
+(defmethod testgf3 :after (a) :after)
+(defmethod testgf3 ((a fixnum)) :primary)
+(defmethod testgf3 :after ((a fixnum)) :after)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(testgf3 (1+ x)))))
+
+
+;;;; more checks with nonstandard method combinations
+
+(defgeneric glist (a)
+  (:method-combination list)
+  (:generic-function-class inlined-generic-function))
+(defmethod glist list (a) t)
+(defmethod glist list ((a fixnum)) :fixnum)
+(defmethod glist list ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(glist x))))
+
+(defgeneric gprogn (a)
+  (:method-combination progn)
+  (:generic-function-class inlined-generic-function))
+(defmethod gprogn progn (a) t)
+(defmethod gprogn progn ((a fixnum)) :fixnum)
+(defmethod gprogn progn ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(gprogn x))))
+
+(defgeneric g+ (a)
+  (:method-combination +)
+  (:generic-function-class inlined-generic-function))
+(defmethod g+ + (a) t)
+(defmethod g+ + ((a fixnum)) :fixnum)
+(defmethod g+ + ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(g+ x))))
+
+(defgeneric gmax (a)
+  (:method-combination max)
+  (:generic-function-class inlined-generic-function))
+(defmethod gmax max (a) t)
+(defmethod gmax max ((a fixnum)) :fixnum)
+(defmethod gmax max ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(gmax x))))
+
+(defgeneric gand (a)
+  (:method-combination and)
+  (:generic-function-class inlined-generic-function))
+(defmethod gand and (a) t)
+(defmethod gand and ((a fixnum)) :fixnum)
+(defmethod gand and ((a float)) t)
+
+(let ((*features* (cons :inline-generic-function *features*)))
+  (print (inline-generic-function '(gand x))))
