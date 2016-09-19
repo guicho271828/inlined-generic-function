@@ -6,12 +6,8 @@ See example in [[t/invalid-branch-playground.lisp]].
 This function mark a specific part of the code to be invalid.
 It MUST NOT be used in a valid code.
 
-+ /On unsupported implementations/, this function has no compile-time effect
-and just signals an error in runtime.
-+ /On supported implementations/ (currently SBCL only),
-the compiler signals a warning,style-warning or error
- (depending on the value of =*INVALID-BRANCH-WARNING-LEVEL*=)
-when the compiler fails to eliminiate it as a dead-code.
++ /On unsupported implementations/, this function has no compile-time effect and just signals an error in runtime.
++ /On supported implementations/ (currently SBCL only), the compiler signals a warning,style-warning or error  (depending on the value of =*INVALID-BRANCH-WARNING-LEVEL*=) when the compiler fails to eliminiate it as a dead-code.
 
 This is useful to detect a specific kind of errors,
 e.g. type errors, infinite loops, infinite recursion and so on.
