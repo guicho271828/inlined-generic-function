@@ -1,5 +1,5 @@
 
-* Bringing the speed of Static Dispatch to CLOS --- Inlined-Generic-Function [[https://circleci.com/gh/guicho271828/inlined-generic-function][https://circleci.com/gh/guicho271828/inlined-generic-function.svg?style=svg]] [[https://travis-ci.org/guicho271828/inlined-generic-function][https://travis-ci.org/guicho271828/inlined-generic-function.svg?branch=master]]
+* Bringing the speed of Static Dispatch to CLOS --- Inlined-Generic-Function [[https://circleci.com/gh/guicho271828/inlined-generic-function][https://circleci.com/gh/guicho271828/inlined-generic-function.svg?style=svg]] [[https://travis-ci.org/guicho271828/inlined-generic-function][https://travis-ci.org/guicho271828/inlined-generic-function.svg?branch=master]] [[http://quickdocs.org/badge/inlined-generic-function.svg][http://quickdocs.org/inlined-generic-function/]] 
 
 Generic functions are convenient but slow.  During the development we
 usually want the full dynamic feature of CLOS. However, when we really need
@@ -15,7 +15,16 @@ faster than the standard generic functions.*
 
 Tested on SBCL and CCL.
 
-** Usage
+* News
+
+Thanks to the suggestion from *@phmarek*,
+I decided to add a feature called =invalid-branch= which uses impl-specific
+feature to *enable a static type checking*.
+[[./invalid-branch.org][Read the doc!]]
+
+
+
+* Usage
 
 The example code here is in =t/playground.lisp=.
 
@@ -262,9 +271,9 @@ Also, it depends on the following libraries:
     Jonathan Amsterdam's iterator/gatherer/accumulator facility
 
 
-** Installation
+* Installation
 
-I plan to submit it to Quicklisp in January 2016.
+Quicklisp available.
 
 ** Author
 

@@ -18,7 +18,6 @@ This does not affect the behavior of INVALID-BRANCH, which always signals an err
 The call to INVALID-BRANCH should be dead-code eliminated by the compiler.
 ~@[~a~]" message))
 
-;; (declaim (notinline invalid-branch))
 (defun invalid-branch (&optional (message
                                   "Consider e.g. adding type restriction, check for infinite loop/recursion"))
   "This function mark a specific part of the code to be invalid.
