@@ -27,7 +27,7 @@ That is, 1.3.9, 1.2.16, 1.1.18.
 
 *Special Variable* =*invalid-branch-warning-level*= 
 
-: (declaim (type (member style-warning warning error) *invalid-branch-warning-level*))
+: (declaim (type (member alexandria:simple-style-warning warn error) *invalid-branch-warning-level*))
 
 A flag controlling the level of compile-time warning signaled when
 compiling a call to INVALID-BRANCH.
