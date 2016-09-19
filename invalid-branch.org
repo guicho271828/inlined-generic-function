@@ -1,13 +1,14 @@
 
+See example in [[t/invalid-branch-playground.lisp]].
+
 *Function* =invalid-branch= &optional /message/
 
 This function mark a specific part of the code to be invalid.
 It MUST NOT be used in a valid code.
 
-/On unsupported implementations/, this function has no compile-time effect
++ /On unsupported implementations/, this function has no compile-time effect
 and just signals an error in runtime.
-
-/On supported implementations/ (currently SBCL only),
++ /On supported implementations/ (currently SBCL only),
 the compiler signals a warning,style-warning or error
  (depending on the value of =*INVALID-BRANCH-WARNING-LEVEL*=)
 when the compiler fails to eliminiate it as a dead-code.
@@ -16,8 +17,7 @@ This is useful to detect a specific kind of errors,
 e.g. type errors, infinite loops, infinite recursion and so on.
 When it happens, you should fix the code, add a type restriction etc.
 in order to make it compile.
-
-For example, using =invalid-branch= in a default method of inlined-generic-function, you can mimic the behavior of static type checking (only on sbcl). See example in [[t/invalid-branch-playground.lisp]].
+For example, using =invalid-branch= in a default method of inlined-generic-function, you can perform a static type checking (only on sbcl).
 
 Supported implementations: [[https://travis-ci.org/guicho271828/inlined-generic-function][You can check these test results on Travis-CI.]]
 
