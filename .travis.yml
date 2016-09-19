@@ -14,6 +14,8 @@ env:
     - ROSWELL_INSTALL_DIR=$HOME/.roswell
   matrix:
     - LISP=sbcl-bin
+    - LISP=sbcl-bin/1.2.16
+    - LISP=sbcl-bin/1.1.18
     - LISP=ccl-bin
     - LISP=abcl
     - LISP=clisp
@@ -31,6 +33,7 @@ matrix:
 
 install:
   - curl -L https://raw.githubusercontent.com/snmsts/roswell/release/scripts/install-for-ci.sh | sh
+  - curl -L https://common-lisp.net/project/asdf/asdf.lisp > asdf.lisp
 
 cache:
   directories:
@@ -38,4 +41,4 @@ cache:
     - $HOME/.config/common-lisp
 
 script:
-  - ros ./testscr.ros
+  - ros -l asdf.lisp ./testscr.ros

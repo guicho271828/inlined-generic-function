@@ -12,11 +12,14 @@
    #:inline-generic-function
    #:inlined-method
    #:method-lambda-expression
-   #:method-lambda-expression*))
+   #:method-lambda-expression*
+   #:invalid-branch))
 
 (defpackage inlined-generic-function.impl
   (:use :closer-common-lisp :trivia :alexandria :iterate
         :introspect-environment
         #+nil :SANDALPHON.COMPILER-MACRO
-        :inlined-generic-function))
+        :inlined-generic-function)
+  (:export
+   #:*invalid-branch-warning-level*))
 
