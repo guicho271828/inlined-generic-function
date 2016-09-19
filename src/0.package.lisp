@@ -19,5 +19,7 @@
   (:use :closer-common-lisp :trivia :alexandria :iterate
         :introspect-environment
         #+nil :SANDALPHON.COMPILER-MACRO
-        :inlined-generic-function))
+        :inlined-generic-function)
+  (:export
+   #:*invalid-branch-warning-level*))
 

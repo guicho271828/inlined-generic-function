@@ -20,6 +20,8 @@
 (def-suite :inlined-generic-function)
 (in-suite :inlined-generic-function)
 
+
+
 ;; run test with (run! test-name) 
 
 ;; (trace make-method-lambda
@@ -263,3 +265,22 @@
 
 (many)
 
+
+;;; invalid-branch
+
+#+sbcl
+(test invalid-branch
+  (let ((*invalid-branch-warning-level* 'error))
+    (finishes
+      (eval
+       `(defun my-function ()
+          (if t
+              (print :ok)
+              (invalid-branch)))))
+    (signals error
+      (compile
+       nil
+       '(lambda ()
+          (if t
+              (invalid-branch)
+              (print :ok)))))))
