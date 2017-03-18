@@ -22,7 +22,7 @@ I decided to add a feature called =invalid-branch= which uses impl-specific
 feature to *enable a static type checking*.
 [[./invalid-branch.org][Read the doc!]]
 
-
+*Added an additional usage note.*
 
 * Usage
 
@@ -270,6 +270,21 @@ Also, it depends on the following libraries:
 + iterate by  ::
     Jonathan Amsterdam's iterator/gatherer/accumulator facility
 
+
+* Usage Note
+
+When you use this library as part of your system, *make sure that the method
+definitions are re-evaluated in load-time*. This is necessary because the
+inlining information for the method could be lost after the compilation, i.e.,
+the FASL file does not keep the defmethod form that should be inlined later.
+
+The only thing you need is:
+
+#+BEGIN_SRC lisp
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defmethod ...)
+  ...)
+#+END_SRC
 
 * Installation
 
