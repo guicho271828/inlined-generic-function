@@ -6,6 +6,30 @@
 
 (defgeneric dummy ())
 
+(defun lambda-list-atoms (lambda-list)
+  (match (trivia.level2.impl::parse-lambda-list lambda-list)
+    ((alist (:atom . atoms)) atoms)))
+
+(defun bind-lambda-list (lambda-list args)
+  (match (trivia.level2.impl::parse-lambda-list lambda-list)
+    ((guard alst t
+	    (cdr (assoc :atom alst)) atoms
+	    (cdr (assoc :optional alst)) optionals
+	    (cdr (assoc :rest alst)) rest
+	    (cdr (assoc :keyword alst)) keywords
+	    (cdr (assoc :aux alst)) aux)
+     (let ((symbols (append atoms (mapcar #'first optionals) rest (mapcar #'caar keywords) (mapcar #'first aux))))
+       (mapcar #'list
+	symbols
+	(eval `(match ',args
+		 ((lambda-list ,@(mapcar #'(lambda (x)
+					     (match x
+					       ((lambda-list var default &optional defaultp) `(,var ',default ,@(if defaultp `(,defaultp))))
+					       (var var)))
+					 lambda-list))
+		  (let ,(if rest `((,(first rest) `(list ,@,(first rest)))))
+		    (list ,@symbols))))))))))
+
 (defun inline-generic-function (whole &optional env)
   "Returns an inlined form which is equivalent to calling the generic function."
   (declare (ignorable whole env)) 
@@ -42,8 +66,8 @@
              ;;    ;; this is a standard method combination
              ;;    (and mc (not (eq (generic-function-method-combination #'dummy))))))
              ;;  (s-s-w? "Failed to inline ~a: ~a has ~a, not ~a." whole name (type-of mc) (type-of (generic-function-method-combination #'dummy))))
-             (((generic-function :lambda-list (guard lambda-list (intersection lambda-list lambda-list-keywords))))
-              (s-s-w? "Failed to inline ~a: Generic function contains lambda-list-keywords." whole))
+             ;; (((generic-function :lambda-list (guard lambda-list (intersection lambda-list lambda-list-keywords))))
+             ;;  (s-s-w? "Failed to inline ~a: Generic function contains lambda-list-keywords." whole))
              ((_ (not :function))
               (s-s-w? "Failed to inline ~a: ~a is a ~a." whole name binding))
              ((_ _ t)
@@ -80,10 +104,12 @@
                        lambda-list
                        argument-precedence-order)
      (format t "~&Inlining a generic function ~a~&" name)
-     (let ((gensyms (mapcar (compose #'gensym #'symbol-name) lambda-list)))
+     (let* ((lambda-atoms (lambda-list-atoms lambda-list))
+	    (gensyms (mapcar (compose #'gensym #'symbol-name) lambda-atoms))
+	    (partial-args (append gensyms (subseq args (length lambda-atoms)))))
        `(let ,(mapcar #'list gensyms args)
-          (ematch* ,(reorder-to-precedence lambda-list argument-precedence-order gensyms)
-            ,@(%matcher-clause gensyms gf method-combination whole argument-precedence-order lambda-list methods)))))))
+	  (ematch* ,(reorder-to-precedence lambda-atoms argument-precedence-order gensyms)
+	    ,@(%matcher-clause partial-args gf method-combination whole argument-precedence-order lambda-atoms methods)))))))
 
 (defun %matcher-clause (gensyms gf method-combination whole argument-precedence-order lambda-list methods)
   (iter (for m in (sort (copy-seq methods)
@@ -156,7 +182,7 @@
                                  (subtypep spec1 spec2))
                                 (_ nil))))
                    (collect m)))
-           (curry #'specializer< lambda-list argument-precedence-order)))))
+           (curry #'specializer< (lambda-list-atoms lambda-list) argument-precedence-order)))))
 
 #+nil
 (defun primary-methods (gf)
@@ -233,7 +259,7 @@
                       `(no-next-method ,',*current-gf* ,',method ,@args))))
                  (next-method-p ()
                    ,(if more-methods t nil)))
-        (let ,(mapcar #'list l-args args)
+        (let* ,(bind-lambda-list l-args args)
           ,@(remove nil
                     (mapcar (lambda (spec arg)
                               (when (classp spec)
