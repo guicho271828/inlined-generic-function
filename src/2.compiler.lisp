@@ -6,6 +6,15 @@
 
 (defgeneric dummy ())
 
+(defun take-while (pred lst)
+  (loop :for x* :on lst
+     :while (funcall pred (car x*))
+     :collect (car x*) :into ret
+     :finally (return (values ret x*))))
+
+(defun lambda-list-atoms (lambda-list)
+  (take-while (lambda (x) (not (member x lambda-list-keywords))) lambda-list))
+
 (defun inline-generic-function (whole &optional env)
   "Returns an inlined form which is equivalent to calling the generic function."
   (declare (ignorable whole env)) 
@@ -80,10 +89,12 @@
                        lambda-list
                        argument-precedence-order)
      (format t "~&Inlining a generic function ~a~&" name)
-     (let ((gensyms (mapcar (compose #'gensym #'symbol-name) lambda-list)))
+     (let* ((lambda-atoms (lambda-list-atoms lambda-list))
+	    (gensyms (mapcar (compose #'gensym #'symbol-name) lambda-atoms))
+	    (partial-args (append gensyms (subseq args (length gensyms)))))
        `(let ,(mapcar #'list gensyms args)
           (ematch* ,(reorder-to-precedence lambda-list argument-precedence-order gensyms)
-            ,@(%matcher-clause gensyms gf method-combination whole argument-precedence-order lambda-list methods)))))))
+            ,@(%matcher-clause partial-args gf method-combination whole argument-precedence-order lambda-list methods)))))))
 
 (defun %matcher-clause (gensyms gf method-combination whole argument-precedence-order lambda-list methods)
   (iter (for m in (sort (copy-seq methods)
@@ -164,10 +175,11 @@
     ((generic-function methods)
      (remove-if #'method-qualifiers methods))))
 
-(defun reorder-to-precedence (lambda-list precedence-order specializers)
-  (assert (= (length lambda-list) (length specializers) (length precedence-order)))
+(defun reorder-to-precedence (lambda-list precedence-order specializers
+			      &aux (lambda-atoms (lambda-list-atoms lambda-list)))
+  (assert (= (length lambda-atoms) (length specializers) (length precedence-order)))
   (mapcar (lambda (arg)
-            (elt specializers (position arg lambda-list)))
+            (elt specializers (position arg lambda-atoms)))
           precedence-order))
 
 (defun specializer< (lambda-list precedence-order m1 m2)
@@ -205,42 +217,44 @@
         ,body))
     ((inlined-method :lambda-expression
                      (list* 'lambda l-args body))
-     `(macrolet (;; since everything is supposed to work in compile-time,
-                 ;; call-next-method and next-method-p can be a macrolet.
-                 (call-next-method (&rest args)
-                   (match ',more-methods
-                     ((list* next rest)
-                      (let ((*current-inline-form* ',*current-inline-form*)
-                            (*current-gf* ',*current-gf*))
-                        ;; FIXME: check this.
-                        ;; CLHS  Local Function CALL-NEXT-METHOD
-                        ;;  Neither argument defaulting, nor using setq,
-                        ;; nor rebinding variables with the same names as
-                        ;; parameters of the method affects the values
-                        ;; call-next-method passes to the method it calls.
-                        (%call-method (if args args ',args) next rest ',specs)))
-                     (nil
-                      ;; This throws an compile-time error.
-                      (cerror "Continue with inserting NO-NEXT-METHOD"
-                              'simple-error
-                              :format-control "While inlining ~a: no next method after ~a (~{~s~^ ~})!"
-                              :format-arguments
-                              (list ',*current-inline-form*
-                                    ',(generic-function-name (method-generic-function method))
-                                    ',(method-specializers method)))
-                      ;; fixme: call no-next-method
-                      ;; call-next-method requires runtime args.
-                      `(no-next-method ,',*current-gf* ,',method ,@args))))
-                 (next-method-p ()
-                   ,(if more-methods t nil)))
-        (let ,(mapcar #'list l-args args)
-          ,@(remove nil
-                    (mapcar (lambda (spec arg)
-                              (when (classp spec)
-                                `(declare (type ,(class-name spec) ,arg))))
-                            specs
-                            l-args))
-          ,@body)))))
+     (multiple-value-bind (l-atoms l-rest) (lambda-list-atoms l-args)
+       `(macrolet (;; since everything is supposed to work in compile-time,
+                   ;; call-next-method and next-method-p can be a macrolet.
+                   (call-next-method (&rest args)
+                     (match ',more-methods
+                       ((list* next rest)
+			(let ((*current-inline-form* ',*current-inline-form*)
+                              (*current-gf* ',*current-gf*))
+                          ;; FIXME: check this.
+                          ;; CLHS  Local Function CALL-NEXT-METHOD
+                          ;;  Neither argument defaulting, nor using setq,
+                          ;; nor rebinding variables with the same names as
+                          ;; parameters of the method affects the values
+                          ;; call-next-method passes to the method it calls.
+                          (%call-method (if args args ',args) next rest ',specs)))
+                       (nil
+			;; This throws an compile-time error.
+			(cerror "Continue with inserting NO-NEXT-METHOD"
+				'simple-error
+				:format-control "While inlining ~a: no next method after ~a (~{~s~^ ~})!"
+				:format-arguments
+				(list ',*current-inline-form*
+                                      ',(generic-function-name (method-generic-function method))
+                                      ',(method-specializers method)))
+			;; fixme: call no-next-method
+			;; call-next-method requires runtime args.
+			`(no-next-method ,',*current-gf* ,',method ,@args))))
+                   (next-method-p ()
+                     ,(if more-methods t nil)))
+          (let ,(mapcar #'list l-atoms args)
+	    (destructuring-bind (,@l-rest) (list ,@(subseq args (length l-atoms)))
+              ,@(remove nil
+			(mapcar (lambda (spec arg)
+				  (when (classp spec)
+                                    `(declare (type ,(class-name spec) ,arg))))
+				specs
+				l-args))
+              ,@body)))))))
 
 (defun improve-readability (form)
   (match form
