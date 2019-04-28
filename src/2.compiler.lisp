@@ -25,7 +25,7 @@
         ((list* 'apply _)
          (s-s-w? "Failed to inline ~a: APPLY form cannot be inlined." whole))
         ((and (call name args)
-              (guard _ (fboundp name)
+              (guard1 _ (fboundp name)
                      (fdefinition name) fdef
                      (type-of fdef) type
                      (multiple-value-list
