@@ -13,27 +13,27 @@ env:
     - PATH=~/.roswell/bin:$PATH
     - ROSWELL_INSTALL_DIR=$HOME/.roswell
   matrix:
+    - LISP=ecl
+    - LISP=cmucl
     - LISP=sbcl-bin
-    # - LISP=sbcl-bin/1.2.16
-    # - LISP=sbcl-bin/1.1.18
     - LISP=ccl-bin
     - LISP=abcl
     - LISP=clisp
-    - LISP=ecl
-    - LISP=cmucl
     - LISP=alisp
 
 matrix:
   allow_failures:
     - env: LISP=clisp
+    - env: LISP=alisp
+    - env: LISP=cmucl
     - env: LISP=abcl
     - env: LISP=ecl
-    - env: LISP=cmucl
-    - env: LISP=alisp
 
 install:
   - curl -L https://raw.githubusercontent.com/snmsts/roswell/release/scripts/install-for-ci.sh | sh
-  - curl -L https://common-lisp.net/project/asdf/asdf.lisp > asdf.lisp
+  - ( cd ~/lisp/ ; git clone https://github.com/guicho271828/lisp-namespace.git )
+  - ( cd ~/lisp/ ; git clone https://github.com/guicho271828/type-i.git )
+  - ( cd ~/lisp/ ; git clone https://github.com/guicho271828/trivia.git )
 
 cache:
   directories:
@@ -41,4 +41,4 @@ cache:
     - $HOME/.config/common-lisp
 
 script:
-  - ros -l asdf.lisp ./testscr.ros
+  - ros ./testscr.ros
